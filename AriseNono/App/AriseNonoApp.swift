@@ -1,0 +1,20 @@
+import SwiftUI
+import SwiftData
+
+@main
+struct AriseNonoApp: App {
+    @State private var appState = AppState()
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(appState)
+                .modelContainer(
+                    for: [WorkoutEntry.self, NutritionEntry.self,
+                          Player.self, Quest.self],
+                    isAutosaveEnabled: true
+                )
+                .preferredColorScheme(.dark)
+        }
+    }
+}
