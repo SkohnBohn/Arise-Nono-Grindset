@@ -70,7 +70,7 @@ struct QuestRowView: View {
                     Text("\(Int(quest.currentValue))/\(Int(quest.targetValue))")
                         .font(AppTheme.T.mono(10))
                         .foregroundStyle(AppTheme.C.smoke)
-                        .fontVariantNumeric(.tabularNums)
+                        .monospacedDigit()
                 }
             }
         }

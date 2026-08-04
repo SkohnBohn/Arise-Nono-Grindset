@@ -97,7 +97,7 @@ struct ProfileView: View {
                 .foregroundStyle(accent)
                 .fontWeight(.bold)
                 .neonGlow(color: accent, radius: 4)
-                .fontVariantNumeric(.tabularNums)
+                .monospacedDigit()
             Text(label.uppercased())
                 .font(AppTheme.T.mono(8))
                 .foregroundStyle(AppTheme.C.smoke)
@@ -151,7 +151,7 @@ struct ProfileView: View {
                 .font(AppTheme.T.mono(10))
                 .foregroundStyle(AppTheme.C.smoke)
                 .frame(width: 32, alignment: .trailing)
-                .fontVariantNumeric(.tabularNums)
+                .monospacedDigit()
         }
     }
 

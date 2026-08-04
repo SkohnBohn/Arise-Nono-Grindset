@@ -152,7 +152,7 @@ struct NutritionDayPanel: View {
             Text(String(format: "%.0f", current))
                 .font(AppTheme.T.mono(10))
                 .foregroundStyle(color)
-                .fontVariantNumeric(.tabularNums)
+                .monospacedDigit()
             Text(label.uppercased())
                 .font(AppTheme.T.mono(7))
                 .foregroundStyle(AppTheme.C.smoke)
@@ -264,7 +264,7 @@ struct NutritionHistoryRow: View {
             Text("\(Int(entry.adherenceScore * 100))%")
                 .font(AppTheme.T.mono(12))
                 .foregroundStyle(AppTheme.C.questCategory(.nutrition))
-                .fontVariantNumeric(.tabularNums)
+                .monospacedDigit()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
