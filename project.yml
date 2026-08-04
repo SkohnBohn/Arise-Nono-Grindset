@@ -16,11 +16,19 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: AriseNono
+    info:
+      path: AriseNono/Info.plist
+      properties:
+        UIUserInterfaceStyle: Dark
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSHumanReadableCopyright: "Arise: Nono Grindset"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ariseapp.arisenono
         SWIFT_VERSION: 5.9
-        INFOPLIST_FILE: AriseNono/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
