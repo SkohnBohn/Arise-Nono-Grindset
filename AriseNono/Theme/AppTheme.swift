@@ -37,7 +37,6 @@ enum AppTheme {
             switch cat {
             case .strength:    return cyan
             case .cardio:      return mag
-            case .nutrition:   return gold
             case .consistency: return Color(hex: "00FF88")
             }
         }

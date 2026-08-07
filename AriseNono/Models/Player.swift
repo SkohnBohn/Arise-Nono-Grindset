@@ -15,13 +15,6 @@ final class Player {
     var streakFreezeBalance: Int
     var bodyweightKg: Double?
 
-    // Nutrition goals
-    var goalCalories: Int
-    var goalProteinG: Double
-    var goalFiberG: Double
-    var goalEatingWindowH: Int
-    var goalMaxSugarG: Double
-
     init(name: String, bodyweightKg: Double? = nil) {
         self.id = UUID()
         self.name = name
@@ -33,14 +26,6 @@ final class Player {
         self.auraScore = 0
         self.streakFreezeBalance = 0
         self.bodyweightKg = bodyweightKg
-
-        // Blueprint-inspired defaults
-        let kg = bodyweightKg ?? 75.0
-        self.goalCalories = 2000
-        self.goalProteinG = kg * 1.5
-        self.goalFiberG = 50
-        self.goalEatingWindowH = 12
-        self.goalMaxSugarG = 15
     }
 
     var xpForCurrentLevel: Int { LevelCurve.cumulativeXP(forLevel: level) }

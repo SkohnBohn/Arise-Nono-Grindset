@@ -34,12 +34,11 @@ class AppState {
     }
 
     func triggerMoment(_ moment: MomentType) {
-        // Rank-up always wins; streak milestone defers to level events
         switch (activeMoment, moment) {
-        case (.rankUp, _):           return
-        case (_, .rankUp):           activeMoment = moment
-        case (.levelUp, .streakMilestone): return
-        default:                     activeMoment = moment
+        case (.rankUp, _):                   return
+        case (_, .rankUp):                   activeMoment = moment
+        case (.levelUp, .streakMilestone):   return
+        default:                             activeMoment = moment
         }
     }
 
@@ -69,7 +68,7 @@ class AppState {
             let lastDay = calendar.startOfDay(for: last)
             let diff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
             switch diff {
-            case 0:  break // already logged today
+            case 0:  break
             case 1:  player.currentStreak += 1
             default:
                 if player.streakFreezeBalance > 0 {
@@ -91,8 +90,7 @@ class AppState {
         }
     }
 
-    func updateAura(for player: Player, workoutHistory: [WorkoutEntry],
-                    nutritionHistory: [NutritionEntry], context: ModelContext) {
+    func updateAura(for player: Player, workoutHistory: [WorkoutEntry], context: ModelContext) {
         let calendar = Calendar.current
         let now = Date.now
 
@@ -106,15 +104,10 @@ class AppState {
                 .flatMap { $0.sets.map(\.muscleGroup) }
         ).count
 
-        let recentNutrition = nutritionHistory.prefix(7).map(\.adherenceScore)
-        let avgAdherence = recentNutrition.isEmpty ? 0 :
-            recentNutrition.reduce(0, +) / Double(recentNutrition.count)
-
         let input = AuraInput(
             activeDays30: days30,
             currentStreak: player.currentStreak,
-            uniqueMuscleGroups14d: uniqueGroups14d,
-            avgNutritionAdherence7d: avgAdherence
+            uniqueMuscleGroups14d: uniqueGroups14d
         )
         player.auraScore = AuraCalculator.compute(input: input)
         try? context.save()

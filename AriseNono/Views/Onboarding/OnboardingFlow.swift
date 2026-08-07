@@ -135,7 +135,7 @@ struct OnboardingFlow: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("BODYWEIGHT (kg) — optional, used for protein targets")
+                    Text("BODYWEIGHT (kg) — optional")
                         .font(AppTheme.T.mono(9))
                         .foregroundStyle(AppTheme.C.smoke)
                         .kerning(1)
@@ -146,11 +146,6 @@ struct OnboardingFlow: View {
                         .padding(14)
                         .hudPanel()
                 }
-
-                Text("Your Blueprint-inspired nutrition goals will be set automatically based on your bodyweight. You can change them anytime in Settings.")
-                    .font(AppTheme.T.body(13))
-                    .foregroundStyle(AppTheme.C.smoke)
-                    .multilineTextAlignment(.center)
 
                 Button {
                     withAnimation { page = 2 }
@@ -188,9 +183,7 @@ struct OnboardingFlow: View {
             Text("""
 Arise is a personal tracking and motivational tool.
 
-The nutrition goals are inspired by publicly available longevity research and are not a substitute for professional medical or dietary advice.
-
-Always consult a qualified healthcare professional before making significant changes to your diet or exercise routine.
+Always consult a qualified healthcare professional before making significant changes to your exercise routine.
 """)
                 .font(AppTheme.T.body(14))
                 .foregroundStyle(AppTheme.C.ash)

@@ -10,8 +10,7 @@ struct AriseNonoApp: App {
             RootView()
                 .environment(appState)
                 .modelContainer(
-                    for: [WorkoutEntry.self, NutritionEntry.self,
-                          Player.self, Quest.self],
+                    for: [WorkoutEntry.self, Player.self, Quest.self],
                     isAutosaveEnabled: true
                 )
                 .preferredColorScheme(.dark)

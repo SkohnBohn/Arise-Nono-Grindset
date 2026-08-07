@@ -103,7 +103,7 @@ struct QuestListView: View {
         let recentIDs = Set(completed.prefix(6).map(\.templateID))
 
         let dailyDrafts = QuestEngine.generateDailyQuests(
-            workoutHistory: [], nutritionHistory: [], recentlyCompletedIDs: recentIDs
+            workoutHistory: [], recentlyCompletedIDs: recentIDs
         )
         let weeklyDrafts = QuestEngine.generateWeeklyQuests(recentlyCompletedIDs: recentIDs)
 

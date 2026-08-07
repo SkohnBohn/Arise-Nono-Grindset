@@ -1,7 +1,7 @@
 import Foundation
 
 enum QuestCategory: String, Codable, CaseIterable, Identifiable {
-    case strength, cardio, nutrition, consistency
+    case strength, cardio, consistency
 
     var id: String { rawValue }
 
@@ -9,7 +9,6 @@ enum QuestCategory: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .strength:    return "Strength"
         case .cardio:      return "Cardio"
-        case .nutrition:   return "Nutrition"
         case .consistency: return "Consistency"
         }
     }

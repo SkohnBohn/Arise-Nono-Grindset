@@ -28,9 +28,6 @@ struct MainTabView: View {
             QuestListView()
                 .tabItem { Label("Quests", systemImage: "shield.fill") }
 
-            NutritionView()
-                .tabItem { Label("Nutrition", systemImage: "leaf.fill") }
-
             ProfileView()
                 .tabItem { Label("Profile", systemImage: "person.fill") }
         }
