@@ -1,6 +1,13 @@
 import Foundation
 import SwiftData
 
+// MARK: - Errors
+
+enum BackupError: LocalizedError {
+    case encodingFailed
+    var errorDescription: String? { "Could not encode backup data." }
+}
+
 // MARK: - Codable snapshots
 
 struct BackupData: Codable {
@@ -65,8 +72,8 @@ enum BackupEngine {
         return d
     }
 
-    // Build a JSON file in the temp directory and return its URL.
-    static func export(player: Player, context: ModelContext) throws -> URL {
+    // Serialise everything to a JSON string the user can copy into Notes.
+    static func exportAsText(player: Player, context: ModelContext) throws -> String {
         let workouts      = (try? context.fetch(FetchDescriptor<WorkoutEntry>())) ?? []
         let quickActions  = (try? context.fetch(FetchDescriptor<QuickActionEntry>())) ?? []
 
@@ -116,17 +123,15 @@ enum BackupEngine {
         )
 
         let data = try encoder.encode(backup)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let name = "arise_backup_\(formatter.string(from: .now)).json"
-        let url  = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try data.write(to: url, options: .atomic)
-        return url
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw BackupError.encodingFailed
+        }
+        return text
     }
 
-    // Wipe existing workout/action records, then restore everything from the JSON at `url`.
-    static func restore(from url: URL, player: Player, context: ModelContext) throws {
-        let data   = try Data(contentsOf: url)
+    // Restore from a JSON string the user pasted in.
+    static func restore(from text: String, player: Player, context: ModelContext) throws {
+        guard let data = text.data(using: .utf8) else { throw BackupError.encodingFailed }
         let backup = try decoder.decode(BackupData.self, from: data)
 
         // Clear existing records

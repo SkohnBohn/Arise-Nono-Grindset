@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
 
 struct AdjustGoalsSheet: View {
     let player: Player
@@ -15,7 +14,7 @@ struct AdjustGoalsSheet: View {
     @State private var showingLevelWarning = false
 
     // Backup / restore
-    @State private var exportURL: URL?
+    @State private var exportText: String?
     @State private var showingImporter = false
     @State private var importError: String?
     @State private var importSucceeded = false
@@ -56,21 +55,21 @@ struct AdjustGoalsSheet: View {
                         // Export save data
                         Button {
                             do {
-                                exportURL = try BackupEngine.export(player: player, context: context)
+                                exportText = try BackupEngine.exportAsText(player: player, context: context)
                             } catch {
                                 importError = "Export failed: \(error.localizedDescription)"
                             }
                         } label: {
                             backupRow(
-                                icon: "square.and.arrow.up",
+                                icon: "doc.on.clipboard",
                                 title: "EXPORT SAVE DATA",
-                                subtitle: "Share a backup file",
+                                subtitle: "Copy backup text to clipboard",
                                 color: AppTheme.C.cyan
                             )
                         }
                         .buttonStyle(.plain)
-                        .sheet(item: $exportURL) { url in
-                            ActivityView(url: url)
+                        .sheet(item: $exportText) { text in
+                            BackupExportSheet(text: text)
                         }
 
                         // Import save data
@@ -80,30 +79,20 @@ struct AdjustGoalsSheet: View {
                             backupRow(
                                 icon: "square.and.arrow.down",
                                 title: "IMPORT SAVE DATA",
-                                subtitle: "Restore from a backup file",
+                                subtitle: "Paste backup text to restore",
                                 color: AppTheme.C.mag
                             )
                         }
                         .buttonStyle(.plain)
-                        .fileImporter(
-                            isPresented: $showingImporter,
-                            allowedContentTypes: [.json]
-                        ) { result in
-                            switch result {
-                            case .success(let url):
+                        .sheet(isPresented: $showingImporter) {
+                            BackupImportSheet { text in
                                 do {
-                                    guard url.startAccessingSecurityScopedResource() else {
-                                        importError = "Permission denied for that file."
-                                        return
-                                    }
-                                    defer { url.stopAccessingSecurityScopedResource() }
-                                    try BackupEngine.restore(from: url, player: player, context: context)
+                                    try BackupEngine.restore(from: text, player: player, context: context)
+                                    showingImporter = false
                                     importSucceeded = true
                                 } catch {
                                     importError = "Import failed: \(error.localizedDescription)"
                                 }
-                            case .failure(let error):
-                                importError = error.localizedDescription
                             }
                         }
                         .alert("Import successful!", isPresented: $importSucceeded) {
@@ -271,20 +260,148 @@ struct AdjustGoalsSheet: View {
     }
 }
 
-// Make URL identifiable so it works with sheet(item:)
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
+// Make String identifiable so it works with sheet(item:)
+extension String: @retroactive Identifiable {
+    public var id: String { self }
 }
 
-// Thin UIKit wrapper for the system share sheet
-struct ActivityView: UIViewControllerRepresentable {
-    let url: URL
+// MARK: - Backup export sheet (copy text)
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+struct BackupExportSheet: View {
+    let text: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.C.void.ignoresSafeArea()
+                VStack(spacing: 14) {
+                    Text("Copy the text below and paste it into Notes (or anywhere safe). You'll paste it back here to restore.")
+                        .font(AppTheme.T.mono(12))
+                        .foregroundStyle(AppTheme.C.smoke)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+
+                    ScrollView {
+                        Text(text)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(AppTheme.C.ash)
+                            .textSelection(.enabled)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .hudPanel()
+                    .padding(.horizontal, 16)
+
+                    Button {
+                        UIPasteboard.general.string = text
+                        copied = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: copied ? "checkmark" : "doc.on.clipboard")
+                            Text(copied ? "COPIED!" : "COPY TO CLIPBOARD")
+                                .kerning(1.5)
+                        }
+                        .font(AppTheme.T.heading(14))
+                        .foregroundStyle(AppTheme.C.void)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(copied ? AppTheme.C.mag : AppTheme.C.cyan)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .neonGlow(color: copied ? AppTheme.C.mag : AppTheme.C.cyan, radius: 5)
+                        .animation(.easeInOut(duration: 0.2), value: copied)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("SAVE DATA")
+                        .font(AppTheme.T.heading(14))
+                        .foregroundStyle(AppTheme.C.snow)
+                        .kerning(3)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(AppTheme.C.cyan)
+                        .fontWeight(.bold)
+                }
+            }
+        }
     }
+}
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+// MARK: - Backup import sheet (paste text)
+
+struct BackupImportSheet: View {
+    let onImport: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var pastedText = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.C.void.ignoresSafeArea()
+                VStack(spacing: 14) {
+                    Text("Paste your backup text below, then tap Import.")
+                        .font(AppTheme.T.mono(12))
+                        .foregroundStyle(AppTheme.C.smoke)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+
+                    TextEditor(text: $pastedText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(AppTheme.C.ash)
+                        .scrollContentBackground(.hidden)
+                        .padding(14)
+                        .hudPanel()
+                        .padding(.horizontal, 16)
+                        .frame(maxHeight: .infinity)
+
+                    Button {
+                        let trimmed = pastedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        onImport(trimmed)
+                    } label: {
+                        Text("IMPORT")
+                            .font(AppTheme.T.heading(14))
+                            .kerning(2)
+                            .foregroundStyle(AppTheme.C.void)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? AppTheme.C.rim : AppTheme.C.mag)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .neonGlow(color: AppTheme.C.mag, radius: pastedText.isEmpty ? 0 : 5)
+                            .animation(.easeInOut(duration: 0.15), value: pastedText.isEmpty)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("RESTORE DATA")
+                        .font(AppTheme.T.heading(14))
+                        .foregroundStyle(AppTheme.C.snow)
+                        .kerning(3)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(AppTheme.C.smoke)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Gojo Level Warning + Picker
