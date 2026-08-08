@@ -4,11 +4,12 @@ struct PlayerCardView: View {
     let player: Player
     @Environment(AppState.self) private var appState
 
+    private var midName: String {
+        "mid_\(AvatarEngine.avatarNumber(for: appState.monthlyXP))"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // mid background image matching current avatar tier
-            let midName = "mid_\(AvatarEngine.avatarNumber(for: appState.monthlyXP))"
-
             // Rank strip
             HStack {
                 Text(player.rankTier.displayName.uppercased())
