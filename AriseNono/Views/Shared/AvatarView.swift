@@ -97,8 +97,6 @@ struct AvatarFullScreenView: View {
                 Image(AvatarEngine.avatarName(for: monthlyXP))
                     .resizable()
                     .scaledToFit()
-                    .clipShape(Circle())
-                    .padding(.horizontal, 48)
                     .scaleEffect(appeared ? 1 : 0.85)
                     .opacity(appeared ? 1 : 0)
                     .animation(.spring(duration: 0.5, bounce: 0.3), value: appeared)

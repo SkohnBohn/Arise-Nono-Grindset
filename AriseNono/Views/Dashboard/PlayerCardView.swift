@@ -6,6 +6,9 @@ struct PlayerCardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // mid background image matching current avatar tier
+            let midName = "mid_\(AvatarEngine.avatarNumber(for: appState.monthlyXP))"
+
             // Rank strip
             HStack {
                 Text(player.rankTier.displayName.uppercased())
@@ -47,6 +50,13 @@ struct PlayerCardView: View {
                 statCell(label: "Freezes", value: "\(player.streakFreezeBalance)")
             }
             .padding(.vertical, 14)
+        }
+        .background {
+            Image(midName)
+                .resizable()
+                .scaledToFill()
+                .opacity(0.25)
+                .clipped()
         }
         .hudPanel(cut: 14, corners: [.topRight, .bottomLeft])
     }
