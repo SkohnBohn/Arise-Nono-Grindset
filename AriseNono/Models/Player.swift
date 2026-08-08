@@ -15,6 +15,23 @@ final class Player {
     var streakFreezeBalance: Int
     var bodyweightKg: Double?
 
+    // Weekly activity goals (days per week)
+    var goalStrengthDays: Int = 2
+    var goalCardioDays: Int = 5
+    var goalStretchDays: Int = 3
+    var goalBackDays: Int = 6
+    var goalSleepDays: Int = 6
+
+    func goal(for type: ActivityType) -> Int {
+        switch type {
+        case .strength:   return goalStrengthDays
+        case .cardio:     return goalCardioDays
+        case .stretching: return goalStretchDays
+        case .back:       return goalBackDays
+        case .sleep:      return goalSleepDays
+        }
+    }
+
     init(name: String, bodyweightKg: Double? = nil) {
         self.id = UUID()
         self.name = name

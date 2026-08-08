@@ -84,6 +84,9 @@ struct QuickActionsPanel: View {
     private func triggerAction(_ action: Action) {
         pressed = action.id
         appState.awardXP(action.xp, to: player, context: context)
+        let entry = QuickActionEntry(actionID: action.id)
+        context.insert(entry)
+        try? context.save()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             pressed = nil
         }
