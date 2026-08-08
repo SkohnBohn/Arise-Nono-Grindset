@@ -14,10 +14,15 @@ class AppState {
     var todayXP: Int = 0
     private var todayXPDate: Date = Calendar.current.startOfDay(for: .now)
 
-    // Opacity for the daily background image: 0 at day-start, up to 0.85 at 200+ XP
+    // Opacity for the daily background image:
+    //   <30 XP  → invisible
+    //   30 XP   → 5% (just barely there)
+    //   ~220 XP → 50% (approx 2h strength session — "amazing day")
+    //   ~370 XP → 85% max
     var todayBgOpacity: Double {
-        let fraction = min(Double(todayXP) / 200.0, 1.0)
-        return sqrt(fraction) * 0.85
+        guard todayXP >= 30 else { return 0 }
+        let raw = 0.05 + Double(todayXP - 30) / 190.0 * 0.45
+        return min(raw, 0.85)
     }
 
     // Call once on launch to seed todayXP from persisted workout entries
