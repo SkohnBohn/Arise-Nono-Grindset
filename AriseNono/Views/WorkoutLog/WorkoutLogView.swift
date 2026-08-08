@@ -102,6 +102,7 @@ struct WorkoutEntryRow: View {
             .sorted { $0.setNumber < $1.setNumber }
             .map { s -> String in
                 let mins = (s.durationSec ?? 0) / 60
+                guard mins > 0 else { return s.exerciseName }
                 let dur = mins < 60 ? "\(mins)m" : (mins % 60 == 0 ? "\(mins/60)h" : "\(mins/60)h \(mins%60)m")
                 return "\(s.exerciseName) \(dur)"
             }
