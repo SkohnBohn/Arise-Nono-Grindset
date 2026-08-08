@@ -11,6 +11,23 @@ class AppState {
     }
 
     var activeMoment: MomentType?
+    var todayXP: Int = 0
+    private var todayXPDate: Date = Calendar.current.startOfDay(for: .now)
+
+    // Opacity for the daily background image: 0 at day-start, up to 0.85 at 200+ XP
+    var todayBgOpacity: Double {
+        let fraction = min(Double(todayXP) / 200.0, 1.0)
+        return sqrt(fraction) * 0.85
+    }
+
+    // Call once on launch to seed todayXP from persisted workout entries
+    func initializeTodayXP(from workouts: [WorkoutEntry]) {
+        let todayStart = Calendar.current.startOfDay(for: .now)
+        todayXP = workouts
+            .filter { $0.date >= todayStart }
+            .reduce(0) { $0 + $1.xpAwarded }
+        todayXPDate = todayStart
+    }
 
     private static let streakMilestones: Set<Int> = [7, 14, 30, 60, 100, 365]
 
@@ -49,6 +66,14 @@ class AppState {
     // MARK: - Player Helpers
 
     func awardXP(_ amount: Int, to player: Player, context: ModelContext) {
+        // Reset today's XP counter if the day has rolled over
+        let today = Calendar.current.startOfDay(for: .now)
+        if today > todayXPDate {
+            todayXP = 0
+            todayXPDate = today
+        }
+        todayXP += amount
+
         let oldXP = player.totalXP
         let oldStreak = player.currentStreak
         player.totalXP += amount

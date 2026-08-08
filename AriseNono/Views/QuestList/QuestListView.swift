@@ -15,6 +15,7 @@ struct QuestListView: View {
         NavigationStack {
             ZStack {
                 AppTheme.C.void.ignoresSafeArea()
+                GojoDailyBackground()
                 ScanlineOverlay()
 
                 ScrollView {

@@ -11,6 +11,7 @@ struct WorkoutLogView: View {
         NavigationStack {
             ZStack {
                 AppTheme.C.void.ignoresSafeArea()
+                GojoDailyBackground()
                 ScanlineOverlay()
 
                 if workouts.isEmpty {
