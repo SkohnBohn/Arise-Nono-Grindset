@@ -221,7 +221,7 @@ struct GojoRewardView: View {
                         .monospacedDigit()
 
                     Button(action: onDismiss) {
-                        Text("KEEP GRINDING")
+                        Text("KEEP GRINDING, KITTEN 🫦")
                             .font(AppTheme.T.heading(15))
                             .foregroundStyle(AppTheme.C.void)
                             .kerning(3)
