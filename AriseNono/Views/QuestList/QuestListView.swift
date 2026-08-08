@@ -101,27 +101,41 @@ struct QuestListView: View {
     private func generateQuests() {
         let midnight = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: .now)!)
         let weekEnd  = Calendar.current.date(byAdding: .day, value: 7, to: .now)!
-        let recentIDs = Set(completed.prefix(6).map(\.templateID))
 
-        let dailyDrafts = QuestEngine.generateDailyQuests(
-            workoutHistory: [], recentlyCompletedIDs: recentIDs
-        )
-        let weeklyDrafts = QuestEngine.generateWeeklyQuests(recentlyCompletedIDs: recentIDs)
+        // IDs that already have a live active quest — never duplicate these
+        let activeIDs  = Set(allQuests.filter { $0.isActive }.map(\.templateID))
+        let recentIDs  = Set(completed.prefix(6).map(\.templateID))
+        let excludeIDs = activeIDs.union(recentIDs)
 
-        for draft in dailyDrafts {
-            let q = Quest(templateID: draft.templateID, type: draft.type, category: draft.category,
-                         title: draft.title, description: draft.description,
-                         targetValue: draft.targetValue, xpReward: draft.xpReward,
-                         rewardType: draft.rewardType, expiresAt: midnight)
-            context.insert(q)
+        // Only generate daily slots that aren't already filled
+        let neededDaily  = max(0, 3 - dailyActive.count)
+        let neededWeekly = max(0, 2 - weeklyActive.count)
+
+        if neededDaily > 0 {
+            let drafts = QuestEngine.generateDailyQuests(
+                workoutHistory: [], recentlyCompletedIDs: excludeIDs
+            ).prefix(neededDaily)
+            for draft in drafts {
+                let q = Quest(templateID: draft.templateID, type: draft.type, category: draft.category,
+                             title: draft.title, description: draft.description,
+                             targetValue: draft.targetValue, xpReward: draft.xpReward,
+                             rewardType: draft.rewardType, expiresAt: midnight)
+                context.insert(q)
+            }
         }
-        for draft in weeklyDrafts {
-            let q = Quest(templateID: draft.templateID, type: draft.type, category: draft.category,
-                         title: draft.title, description: draft.description,
-                         targetValue: draft.targetValue, xpReward: draft.xpReward,
-                         rewardType: draft.rewardType, expiresAt: weekEnd)
-            context.insert(q)
+
+        if neededWeekly > 0 {
+            let drafts = QuestEngine.generateWeeklyQuests(recentlyCompletedIDs: excludeIDs)
+                .prefix(neededWeekly)
+            for draft in drafts {
+                let q = Quest(templateID: draft.templateID, type: draft.type, category: draft.category,
+                             title: draft.title, description: draft.description,
+                             targetValue: draft.targetValue, xpReward: draft.xpReward,
+                             rewardType: draft.rewardType, expiresAt: weekEnd)
+                context.insert(q)
+            }
         }
+
         try? context.save()
         appState.refreshQuestProgress(player: players.first, context: context)
     }
