@@ -166,6 +166,8 @@ struct AddWorkoutSheet: View {
         )
         let todayTotal = (try? context.fetch(descriptor))?.reduce(0) { $0 + $1.durationMin } ?? totalDuration
 
+        appState.refreshQuestProgress(player: players.first, context: context)
+
         rewardXP = previewXP
         rewardImageName = GojoRewardView.pickImage(todayMinutes: todayTotal)
         showingReward = true

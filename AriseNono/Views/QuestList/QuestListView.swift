@@ -123,5 +123,6 @@ struct QuestListView: View {
             context.insert(q)
         }
         try? context.save()
+        appState.refreshQuestProgress(player: players.first, context: context)
     }
 }

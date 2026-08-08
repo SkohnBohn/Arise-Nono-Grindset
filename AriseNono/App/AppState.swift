@@ -120,6 +120,63 @@ class AppState {
         }
     }
 
+    // Evaluate all active quests against today's and this week's workout data,
+    // update progress values, and complete quests that have hit their target.
+    func refreshQuestProgress(player: Player?, context: ModelContext) {
+        let calendar  = Calendar.current
+        let todayStart = calendar.startOfDay(for: .now)
+        let weekStart  = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? todayStart
+
+        guard let allWorkouts = try? context.fetch(FetchDescriptor<WorkoutEntry>()),
+              let allQuests   = try? context.fetch(FetchDescriptor<Quest>()) else { return }
+
+        let activeQuests = allQuests.filter { $0.isActive }
+        let todayEntries = allWorkouts.filter { $0.date >= todayStart }
+        let weekEntries  = allWorkouts.filter { $0.date >= weekStart }
+
+        let todayHistory: WorkoutHistoryEntry? = todayEntries.isEmpty ? nil : WorkoutHistoryEntry(
+            date: .now,
+            muscleGroups: Set(todayEntries.flatMap { $0.sets.map(\.muscleGroup) }),
+            setCount: todayEntries.reduce(0) { $0 + $1.totalSets },
+            hasCardio: todayEntries.contains { $0.sets.contains { $0.muscleGroup == .cardio } },
+            cardioMinutes: todayEntries.reduce(0) { acc, entry in
+                acc + entry.sets
+                    .filter { $0.muscleGroup == .cardio }
+                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+            }
+        )
+        let weekHistory = weekEntries.map { entry in
+            WorkoutHistoryEntry(
+                date: entry.date,
+                muscleGroups: entry.muscleGroups,
+                setCount: entry.totalSets,
+                hasCardio: entry.sets.contains { $0.muscleGroup == .cardio },
+                cardioMinutes: entry.sets
+                    .filter { $0.muscleGroup == .cardio }
+                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+            )
+        }
+
+        for quest in activeQuests {
+            let newValue = QuestEngine.evaluateProgress(
+                templateID: quest.templateID,
+                todayWorkout: todayHistory,
+                weekWorkouts: weekHistory
+            )
+            quest.currentValue = newValue
+            guard !quest.isCompleted, newValue >= quest.targetValue else { continue }
+            quest.isCompleted  = true
+            quest.completedAt  = .now
+            if let player {
+                awardXP(quest.xpReward, to: player, context: context)
+                if quest.rewardType == .streakFreeze {
+                    player.streakFreezeBalance += 1
+                }
+            }
+        }
+        try? context.save()
+    }
+
     func updateAura(for player: Player, workoutHistory: [WorkoutEntry], context: ModelContext) {
         let calendar = Calendar.current
         let now = Date.now

@@ -150,6 +150,8 @@ struct QuickActionsPanel: View {
 
         try? context.save()
 
+        appState.refreshQuestProgress(player: player, context: context)
+
         // Reset debounce state
         pendingCounts[action.id] = 0
         debounceTasks[action.id] = nil
