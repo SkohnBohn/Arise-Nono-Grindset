@@ -17,29 +17,31 @@ struct WorkoutLogView: View {
                 if workouts.isEmpty {
                     emptyState
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(workouts) { entry in
-                                WorkoutEntryRow(entry: entry)
-                                    .swipeActions(edge: .leading) {
-                                        Button {
-                                            editingEntry = entry
-                                        } label: {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        .tint(AppTheme.C.cyan)
+                    List {
+                        ForEach(workouts) { entry in
+                            WorkoutEntryRow(entry: entry)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        editingEntry = entry
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
                                     }
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            context.delete(entry)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .tint(AppTheme.C.cyan)
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        context.delete(entry)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
                                     }
-                            }
+                                }
                         }
-                        .padding(16)
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("")
