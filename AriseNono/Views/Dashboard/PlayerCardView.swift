@@ -57,8 +57,8 @@ struct PlayerCardView: View {
                 .resizable()
                 .scaledToFill()
                 .opacity(0.25)
-                .clipped()
         }
+        .clipped()
         .hudPanel(cut: 14, corners: [.topRight, .bottomLeft])
     }
 
