@@ -21,6 +21,7 @@ struct DashboardView: View {
                     VStack(spacing: 16) {
                         if let player {
                             PlayerCardView(player: player)
+                            QuickActionsPanel(player: player)
                         }
 
                         QuestStripView(quests: Array(dailyQuests.prefix(3)))
