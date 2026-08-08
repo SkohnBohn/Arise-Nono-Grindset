@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct AdjustGoalsSheet: View {
     let player: Player
@@ -12,6 +13,12 @@ struct AdjustGoalsSheet: View {
     @State private var backGoal: Int
     @State private var sleepGoal: Int
     @State private var showingLevelWarning = false
+
+    // Backup / restore
+    @State private var exportURL: URL?
+    @State private var showingImporter = false
+    @State private var importError: String?
+    @State private var importSucceeded = false
 
     init(player: Player) {
         self.player = player
@@ -39,6 +46,79 @@ struct AdjustGoalsSheet: View {
                         goalRow(.stretching, value: $stretchGoal)
                         goalRow(.back,     value: $backGoal)
                         goalRow(.sleep,    value: $sleepGoal)
+
+                        // Divider
+                        Rectangle()
+                            .fill(AppTheme.C.rim)
+                            .frame(height: 1)
+                            .padding(.vertical, 6)
+
+                        // Export save data
+                        Button {
+                            do {
+                                exportURL = try BackupEngine.export(player: player, context: context)
+                            } catch {
+                                importError = "Export failed: \(error.localizedDescription)"
+                            }
+                        } label: {
+                            backupRow(
+                                icon: "square.and.arrow.up",
+                                title: "EXPORT SAVE DATA",
+                                subtitle: "Share a backup file",
+                                color: AppTheme.C.cyan
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .sheet(item: $exportURL) { url in
+                            ActivityView(url: url)
+                        }
+
+                        // Import save data
+                        Button {
+                            showingImporter = true
+                        } label: {
+                            backupRow(
+                                icon: "square.and.arrow.down",
+                                title: "IMPORT SAVE DATA",
+                                subtitle: "Restore from a backup file",
+                                color: AppTheme.C.mag
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .fileImporter(
+                            isPresented: $showingImporter,
+                            allowedContentTypes: [.json]
+                        ) { result in
+                            switch result {
+                            case .success(let url):
+                                do {
+                                    guard url.startAccessingSecurityScopedResource() else {
+                                        importError = "Permission denied for that file."
+                                        return
+                                    }
+                                    defer { url.stopAccessingSecurityScopedResource() }
+                                    try BackupEngine.restore(from: url, player: player, context: context)
+                                    importSucceeded = true
+                                } catch {
+                                    importError = "Import failed: \(error.localizedDescription)"
+                                }
+                            case .failure(let error):
+                                importError = error.localizedDescription
+                            }
+                        }
+                        .alert("Import successful!", isPresented: $importSucceeded) {
+                            Button("OK") { dismiss() }
+                        } message: {
+                            Text("Your stats, workout history, and goals have been restored.")
+                        }
+                        .alert("Something went wrong", isPresented: Binding(
+                            get: { importError != nil },
+                            set: { if !$0 { importError = nil } }
+                        )) {
+                            Button("OK", role: .cancel) { importError = nil }
+                        } message: {
+                            Text(importError ?? "")
+                        }
 
                         // Divider
                         Rectangle()
@@ -165,6 +245,46 @@ struct AdjustGoalsSheet: View {
         try? context.save()
         dismiss()
     }
+
+    @ViewBuilder
+    private func backupRow(icon: String, title: String, subtitle: String, color: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(AppTheme.T.mono(10))
+                    .foregroundStyle(color)
+                    .kerning(1.5)
+                Text(subtitle)
+                    .font(AppTheme.T.mono(9))
+                    .foregroundStyle(AppTheme.C.smoke)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(AppTheme.C.smoke)
+        }
+        .padding(14)
+        .hudPanel(cut: 8, corners: [.topRight, .bottomLeft])
+    }
+}
+
+// Make URL identifiable so it works with sheet(item:)
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
+}
+
+// Thin UIKit wrapper for the system share sheet
+struct ActivityView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Gojo Level Warning + Picker
