@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PlayerCardView: View {
     let player: Player
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,20 +21,8 @@ struct PlayerCardView: View {
             .padding(.horizontal, 16)
             .padding(.top, 16)
 
-            // Avatar placeholder + aura ring
-            ZStack {
-                Circle()
-                    .stroke(AppTheme.C.rank(player.rankTier).opacity(0.3), lineWidth: 2)
-                    .frame(width: 100, height: 100)
-                    .neonGlow(color: AppTheme.C.rank(player.rankTier), radius: 8)
-
-                Image(systemName: "person.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 54, height: 54)
-                    .foregroundStyle(AppTheme.C.smoke)
-            }
-            .padding(.vertical, 16)
+            AvatarView(monthlyXP: appState.monthlyXP, rankTier: player.rankTier, size: 100)
+                .padding(.vertical, 16)
 
             // Player name
             Text(player.name.uppercased())

@@ -12,7 +12,9 @@ class AppState {
 
     var activeMoment: MomentType?
     var todayXP: Int = 0
+    var monthlyXP: Int = 0
     private var todayXPDate: Date = Calendar.current.startOfDay(for: .now)
+    private var monthlyXPMonth: Int = Calendar.current.component(.month, from: .now)
 
     // Opacity for the daily background image:
     //   <30 XP  → invisible
@@ -25,13 +27,15 @@ class AppState {
         return min(raw, 0.85)
     }
 
-    // Call once on launch to seed todayXP from persisted workout entries
+    // Call once on launch to seed todayXP and monthlyXP from persisted workout entries
     func initializeTodayXP(from workouts: [WorkoutEntry]) {
-        let todayStart = Calendar.current.startOfDay(for: .now)
-        todayXP = workouts
-            .filter { $0.date >= todayStart }
-            .reduce(0) { $0 + $1.xpAwarded }
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: .now)
+        let monthStart = calendar.dateInterval(of: .month, for: .now)?.start ?? todayStart
+        todayXP = workouts.filter { $0.date >= todayStart }.reduce(0) { $0 + $1.xpAwarded }
+        monthlyXP = workouts.filter { $0.date >= monthStart }.reduce(0) { $0 + $1.xpAwarded }
         todayXPDate = todayStart
+        monthlyXPMonth = calendar.component(.month, from: .now)
     }
 
     private static let streakMilestones: Set<Int> = [7, 14, 30, 60, 100, 365]
@@ -72,12 +76,19 @@ class AppState {
 
     func awardXP(_ amount: Int, to player: Player, context: ModelContext) {
         // Reset today's XP counter if the day has rolled over
-        let today = Calendar.current.startOfDay(for: .now)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
         if today > todayXPDate {
             todayXP = 0
             todayXPDate = today
         }
+        let currentMonth = calendar.component(.month, from: .now)
+        if currentMonth != monthlyXPMonth {
+            monthlyXP = 0
+            monthlyXPMonth = currentMonth
+        }
         todayXP += amount
+        monthlyXP += amount
 
         let oldXP = player.totalXP
         let oldStreak = player.currentStreak

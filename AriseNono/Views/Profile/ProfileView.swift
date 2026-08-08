@@ -6,6 +6,7 @@ struct ProfileView: View {
     @Query(sort: \WorkoutEntry.date, order: .reverse) private var workouts: [WorkoutEntry]
     @Query(sort: \QuickActionEntry.date, order: .reverse) private var quickActions: [QuickActionEntry]
     @Environment(\.modelContext) private var context
+    @Environment(AppState.self) private var appState
     @State private var showingGoals = false
 
     private var player: Player? { players.first }
@@ -60,16 +61,7 @@ struct ProfileView: View {
     @ViewBuilder
     private func rankBadgeSection(_ player: Player) -> some View {
         VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .stroke(AppTheme.C.rank(player.rankTier), lineWidth: 3)
-                    .frame(width: 90, height: 90)
-                    .neonGlow(color: AppTheme.C.rank(player.rankTier), radius: 12)
-                Image("profilePicture")
-                    .resizable().scaledToFill()
-                    .frame(width: 84, height: 84)
-                    .clipShape(Circle())
-            }
+            AvatarView(monthlyXP: appState.monthlyXP, rankTier: player.rankTier, size: 90)
             Text(player.name.uppercased())
                 .font(AppTheme.T.heading(22))
                 .foregroundStyle(AppTheme.C.snow)
