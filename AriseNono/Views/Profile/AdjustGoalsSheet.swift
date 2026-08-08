@@ -11,6 +11,7 @@ struct AdjustGoalsSheet: View {
     @State private var stretchGoal: Int
     @State private var backGoal: Int
     @State private var sleepGoal: Int
+    @State private var showingLevelWarning = false
 
     init(player: Player) {
         self.player = player
@@ -38,6 +39,39 @@ struct AdjustGoalsSheet: View {
                         goalRow(.stretching, value: $stretchGoal)
                         goalRow(.back,     value: $backGoal)
                         goalRow(.sleep,    value: $sleepGoal)
+
+                        // Divider
+                        Rectangle()
+                            .fill(AppTheme.C.rim)
+                            .frame(height: 1)
+                            .padding(.vertical, 6)
+
+                        // Manual level override
+                        Button {
+                            showingLevelWarning = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.C.gold)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("SET LEVEL MANUALLY")
+                                        .font(AppTheme.T.mono(10))
+                                        .foregroundStyle(AppTheme.C.gold)
+                                        .kerning(1.5)
+                                    Text("Emergency data recovery only")
+                                        .font(AppTheme.T.mono(9))
+                                        .foregroundStyle(AppTheme.C.smoke)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(AppTheme.C.smoke)
+                            }
+                            .padding(14)
+                            .hudPanel(cut: 8, corners: [.topRight, .bottomLeft], border: AppTheme.C.gold.opacity(0.3))
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(16)
                 }
@@ -59,6 +93,11 @@ struct AdjustGoalsSheet: View {
                     Button("Save") { save() }
                         .foregroundStyle(AppTheme.C.cyan)
                         .fontWeight(.bold)
+                }
+            }
+            .fullScreenCover(isPresented: $showingLevelWarning) {
+                GojoLevelWarningView(player: player) {
+                    showingLevelWarning = false
                 }
             }
         }
@@ -125,5 +164,179 @@ struct AdjustGoalsSheet: View {
         player.goalSleepDays    = sleepGoal
         try? context.save()
         dismiss()
+    }
+}
+
+// MARK: - Gojo Level Warning + Picker
+
+struct GojoLevelWarningView: View {
+    let player: Player
+    let onDismiss: () -> Void
+
+    @Environment(\.modelContext) private var context
+    @State private var confirmed = false
+    @State private var appeared = false
+    @State private var selectedLevel: Int
+
+    init(player: Player, onDismiss: @escaping () -> Void) {
+        self.player = player
+        self.onDismiss = onDismiss
+        _selectedLevel = State(initialValue: player.level)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if confirmed {
+                levelPickerScreen
+            } else {
+                warningScreen
+            }
+        }
+    }
+
+    // MARK: Warning screen
+
+    private var warningScreen: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Image("gojo_15")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .scaleEffect(appeared ? 1 : 0.88)
+                .opacity(appeared ? 1 : 0)
+                .animation(.spring(duration: 0.5, bounce: 0.25), value: appeared)
+
+            Spacer()
+
+            VStack(spacing: 18) {
+                Text("NAH, I'D WIN.")
+                    .font(AppTheme.T.heading(28))
+                    .foregroundStyle(AppTheme.C.snow)
+                    .kerning(4)
+                    .neonGlow(color: AppTheme.C.cyan, radius: 8)
+                    .multilineTextAlignment(.center)
+
+                Text("But would you? Gojo trained for real.\nDon't fake your level. Don't lie to yourself.\nDon't lie to your friends.\n\nGojo would be genuinely disappointed\nif you used this to cheat.")
+                    .font(AppTheme.T.mono(13))
+                    .foregroundStyle(AppTheme.C.ash)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+
+                Text("This is for data recovery ONLY.")
+                    .font(AppTheme.T.mono(11))
+                    .foregroundStyle(AppTheme.C.gold)
+                    .kerning(1)
+                    .neonGlow(color: AppTheme.C.gold, radius: 4)
+
+                VStack(spacing: 10) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) { confirmed = true }
+                    } label: {
+                        Text("I UNDERSTAND — PROCEED")
+                            .font(AppTheme.T.heading(13))
+                            .foregroundStyle(AppTheme.C.void)
+                            .kerning(2)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(AppTheme.C.gold)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .neonGlow(color: AppTheme.C.gold, radius: 5)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onDismiss) {
+                        Text("Never mind")
+                            .font(AppTheme.T.body(14))
+                            .foregroundStyle(AppTheme.C.smoke)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
+            .animation(.easeOut(duration: 0.4).delay(0.3), value: appeared)
+            .padding(.horizontal, 28)
+            .padding(.bottom, 52)
+        }
+        .onAppear { appeared = true }
+    }
+
+    // MARK: Level picker screen
+
+    private var levelPickerScreen: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button(action: onDismiss) {
+                    Text("Cancel")
+                        .font(AppTheme.T.body(15))
+                        .foregroundStyle(AppTheme.C.smoke)
+                }
+                Spacer()
+                Text("SET LEVEL")
+                    .font(AppTheme.T.heading(14))
+                    .foregroundStyle(AppTheme.C.snow)
+                    .kerning(3)
+                Spacer()
+                Button {
+                    applyLevel()
+                } label: {
+                    Text("Apply")
+                        .font(AppTheme.T.body(15))
+                        .fontWeight(.bold)
+                        .foregroundStyle(AppTheme.C.gold)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 56)
+            .padding(.bottom, 20)
+
+            Divider().background(AppTheme.C.rim)
+
+            // Current info
+            VStack(spacing: 6) {
+                Text("CURRENT LEVEL: \(player.level)")
+                    .font(AppTheme.T.mono(11))
+                    .foregroundStyle(AppTheme.C.smoke)
+                    .kerning(2)
+                Text("NEW LEVEL: \(selectedLevel)")
+                    .font(AppTheme.T.mono(20))
+                    .foregroundStyle(AppTheme.C.gold)
+                    .fontWeight(.bold)
+                    .neonGlow(color: AppTheme.C.gold, radius: 5)
+                    .monospacedDigit()
+                Text("≈ \(LevelCurve.cumulativeXP(forLevel: selectedLevel)) total XP")
+                    .font(AppTheme.T.mono(11))
+                    .foregroundStyle(AppTheme.C.cyanDim)
+                    .monospacedDigit()
+            }
+            .padding(.vertical, 24)
+
+            // Picker wheel
+            Picker("Level", selection: $selectedLevel) {
+                ForEach(1...200, id: \.self) { lvl in
+                    Text("Level \(lvl)")
+                        .font(AppTheme.T.mono(16))
+                        .foregroundStyle(AppTheme.C.ash)
+                        .tag(lvl)
+                }
+            }
+            .pickerStyle(.wheel)
+            .colorScheme(.dark)
+            .frame(maxWidth: .infinity)
+
+            Spacer()
+        }
+    }
+
+    private func applyLevel() {
+        player.totalXP   = LevelCurve.cumulativeXP(forLevel: selectedLevel)
+        player.level     = selectedLevel
+        player.rankTier  = RankTier.tier(for: selectedLevel)
+        try? context.save()
+        onDismiss()
     }
 }
