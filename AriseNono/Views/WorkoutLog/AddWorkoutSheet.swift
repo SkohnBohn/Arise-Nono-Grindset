@@ -16,6 +16,9 @@ struct AddWorkoutSheet: View {
     @State private var date: Date = .now
     @State private var notes: String = ""
     @State private var blocks: [WorkoutBlock] = [WorkoutBlock()]
+    @State private var showingReward = false
+    @State private var rewardImageName = "gojo_1"
+    @State private var rewardXP = 0
 
     private let durations = [5, 10, 15, 20, 30, 45, 60, 75, 90, 120]
     private var streak: Int { players.first?.currentStreak ?? 0 }
@@ -120,6 +123,11 @@ struct AddWorkoutSheet: View {
                         .fontWeight(.bold)
                 }
             }
+            .fullScreenCover(isPresented: $showingReward, onDismiss: { dismiss() }) {
+                GojoRewardView(imageName: rewardImageName, xpEarned: rewardXP) {
+                    showingReward = false
+                }
+            }
         }
     }
 
@@ -150,7 +158,111 @@ struct AddWorkoutSheet: View {
         }
 
         try? context.save()
-        dismiss()
+
+        // Compute today's total workout minutes for image bias
+        let todayStart = Calendar.current.startOfDay(for: .now)
+        let descriptor = FetchDescriptor<WorkoutEntry>(
+            predicate: #Predicate { $0.date >= todayStart }
+        )
+        let todayTotal = (try? context.fetch(descriptor))?.reduce(0) { $0 + $1.durationMin } ?? totalDuration
+
+        rewardXP = previewXP
+        rewardImageName = GojoRewardView.pickImage(todayMinutes: todayTotal)
+        showingReward = true
+    }
+}
+
+// MARK: - Gojo Reward View
+
+struct GojoRewardView: View {
+    let imageName: String
+    let xpEarned: Int
+    let onDismiss: () -> Void
+
+    @State private var appeared = false
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Top label
+                Text("SESSION COMPLETE")
+                    .font(AppTheme.T.mono(11))
+                    .foregroundStyle(AppTheme.C.cyan)
+                    .kerning(4)
+                    .neonGlow(color: AppTheme.C.cyan, radius: 4)
+                    .padding(.top, 56)
+                    .opacity(appeared ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.3), value: appeared)
+
+                Spacer()
+
+                // Gojo image
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .scaleEffect(appeared ? 1 : 0.85)
+                    .opacity(appeared ? 1 : 0)
+                    .animation(.spring(duration: 0.5, bounce: 0.3), value: appeared)
+
+                Spacer()
+
+                // XP + button
+                VStack(spacing: 14) {
+                    Text("+\(xpEarned) XP")
+                        .font(AppTheme.T.mono(40))
+                        .foregroundStyle(AppTheme.C.gold)
+                        .fontWeight(.bold)
+                        .neonGlow(color: AppTheme.C.gold, radius: 10)
+                        .monospacedDigit()
+
+                    Button(action: onDismiss) {
+                        Text("KEEP GRINDING")
+                            .font(AppTheme.T.heading(15))
+                            .foregroundStyle(AppTheme.C.void)
+                            .kerning(3)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(AppTheme.C.cyan)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .neonGlow(color: AppTheme.C.cyan, radius: 6)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 32)
+                }
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 20)
+                .animation(.easeOut(duration: 0.4).delay(0.4), value: appeared)
+                .padding(.bottom, 52)
+            }
+        }
+        .onTapGesture { onDismiss() }
+        .onAppear { appeared = true }
+    }
+
+    // Weighted image selection: more workout minutes today → bias toward higher-ranked images
+    static func pickImage(todayMinutes: Int, count: Int = 15) -> String {
+        // Peak image index (0-based) shifts from ~3 at 0 min to ~13 at 90+ min
+        let fraction = min(Double(todayMinutes), 90.0) / 90.0
+        let peak = 3.0 + fraction * 10.0
+        let sigma = 3.0
+
+        var weights = (0..<count).map { i -> Double in
+            let diff = Double(i) - peak
+            return exp(-(diff * diff) / (2.0 * sigma * sigma))
+        }
+        let sum = weights.reduce(0.0, +)
+        weights = weights.map { $0 / sum }
+
+        let roll = Double.random(in: 0.0..<1.0)
+        var cumulative = 0.0
+        for (i, w) in weights.enumerated() {
+            cumulative += w
+            if roll < cumulative { return "gojo_\(i + 1)" }
+        }
+        return "gojo_\(count)"
     }
 }
 
