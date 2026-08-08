@@ -143,7 +143,9 @@ class AppState {
                 acc + entry.sets
                     .filter { $0.muscleGroup == .cardio }
                     .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
-            }
+            },
+            exerciseNames: Set(todayEntries.flatMap { $0.sets.map(\.exerciseName) }),
+            totalDurationMin: todayEntries.reduce(0) { $0 + $1.durationMin }
         )
         let weekHistory = weekEntries.map { entry in
             WorkoutHistoryEntry(
@@ -153,7 +155,9 @@ class AppState {
                 hasCardio: entry.sets.contains { $0.muscleGroup == .cardio },
                 cardioMinutes: entry.sets
                     .filter { $0.muscleGroup == .cardio }
-                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 },
+                exerciseNames: Set(entry.sets.map(\.exerciseName)),
+                totalDurationMin: entry.durationMin
             )
         }
 
