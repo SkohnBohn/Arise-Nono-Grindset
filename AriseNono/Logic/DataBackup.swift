@@ -13,12 +13,12 @@ enum BackupError: LocalizedError {
 struct BackupData: Codable {
     var version: Int = 1
     var exportedAt: Date
-    var player: PlayerSnapshot
-    var workouts: [WorkoutSnapshot]
-    var quickActions: [QuickActionSnapshot]
+    var player: BkpPlayer
+    var workouts: [BkpWorkout]
+    var quickActions: [BkpQuickAction]
 }
 
-struct PlayerSnapshot: Codable {
+struct BkpPlayer: Codable {
     var name: String
     var totalXP: Int
     var currentStreak: Int
@@ -33,15 +33,15 @@ struct PlayerSnapshot: Codable {
     var goalSleepDays: Int
 }
 
-struct WorkoutSnapshot: Codable {
+struct BkpWorkout: Codable {
     var date: Date
     var notes: String
     var durationMin: Int
     var xpAwarded: Int
-    var sets: [SetSnapshot]
+    var sets: [BkpSet]
 }
 
-struct SetSnapshot: Codable {
+struct BkpSet: Codable {
     var exerciseName: String
     var muscleGroup: MuscleGroup
     var setNumber: Int
@@ -50,7 +50,7 @@ struct SetSnapshot: Codable {
     var durationSec: Int?
 }
 
-struct QuickActionSnapshot: Codable {
+struct BkpQuickAction: Codable {
     var date: Date
     var actionID: String
 }
@@ -74,10 +74,10 @@ enum BackupEngine {
 
     // Serialise everything to a JSON string the user can copy into Notes.
     static func exportAsText(player: Player, context: ModelContext) throws -> String {
-        let workouts      = (try? context.fetch(FetchDescriptor<WorkoutEntry>())) ?? []
-        let quickActions  = (try? context.fetch(FetchDescriptor<QuickActionEntry>())) ?? []
+        let workouts     = (try? context.fetch(FetchDescriptor<WorkoutEntry>())) ?? []
+        let quickActions = (try? context.fetch(FetchDescriptor<QuickActionEntry>())) ?? []
 
-        let playerSnap = PlayerSnapshot(
+        let playerSnap = BkpPlayer(
             name: player.name,
             totalXP: player.totalXP,
             currentStreak: player.currentStreak,
@@ -92,14 +92,14 @@ enum BackupEngine {
             goalSleepDays: player.goalSleepDays
         )
 
-        let workoutSnaps: [WorkoutSnapshot] = workouts.map { w in
-            WorkoutSnapshot(
+        let workoutSnaps: [BkpWorkout] = workouts.map { w in
+            BkpWorkout(
                 date: w.date,
                 notes: w.notes,
                 durationMin: w.durationMin,
                 xpAwarded: w.xpAwarded,
                 sets: w.sets.map { s in
-                    SetSnapshot(
+                    BkpSet(
                         exerciseName: s.exerciseName,
                         muscleGroup: s.muscleGroup,
                         setNumber: s.setNumber,
@@ -111,12 +111,12 @@ enum BackupEngine {
             )
         }
 
-        let quickSnaps: [QuickActionSnapshot] = quickActions.map {
-            QuickActionSnapshot(date: $0.date, actionID: $0.actionID)
+        let quickSnaps: [BkpQuickAction] = quickActions.map {
+            BkpQuickAction(date: $0.date, actionID: $0.actionID)
         }
 
         let backup = BackupData(
-            exportedAt: .now,
+            exportedAt: Date(),
             player: playerSnap,
             workouts: workoutSnaps,
             quickActions: quickSnaps
@@ -140,20 +140,20 @@ enum BackupEngine {
 
         // Restore player
         let p = backup.player
-        player.name               = p.name
-        player.totalXP            = p.totalXP
-        player.level              = LevelCurve.level(forTotalXP: p.totalXP)
-        player.rankTier           = RankTier.tier(for: player.level)
-        player.currentStreak      = p.currentStreak
-        player.longestStreak      = p.longestStreak
-        player.lastActiveDate     = p.lastActiveDate
+        player.name                = p.name
+        player.totalXP             = p.totalXP
+        player.level               = LevelCurve.level(forTotalXP: p.totalXP)
+        player.rankTier            = RankTier.tier(for: player.level)
+        player.currentStreak       = p.currentStreak
+        player.longestStreak       = p.longestStreak
+        player.lastActiveDate      = p.lastActiveDate
         player.streakFreezeBalance = p.streakFreezeBalance
-        player.bodyweightKg       = p.bodyweightKg
-        player.goalStrengthDays   = p.goalStrengthDays
-        player.goalCardioDays     = p.goalCardioDays
-        player.goalStretchDays    = p.goalStretchDays
-        player.goalBackDays       = p.goalBackDays
-        player.goalSleepDays      = p.goalSleepDays
+        player.bodyweightKg        = p.bodyweightKg
+        player.goalStrengthDays    = p.goalStrengthDays
+        player.goalCardioDays      = p.goalCardioDays
+        player.goalStretchDays     = p.goalStretchDays
+        player.goalBackDays        = p.goalBackDays
+        player.goalSleepDays       = p.goalSleepDays
 
         // Restore workouts
         for ws in backup.workouts {
