@@ -120,14 +120,18 @@ struct ProfileView: View {
 
     @ViewBuilder
     private func auraBreakdown(_ player: Player) -> some View {
+        let consistency = min(Double(player.currentStreak) / 30.0, 1.0)
+
         VStack(alignment: .leading, spacing: 10) {
             Text("AURA BREAKDOWN")
                 .font(AppTheme.T.mono(10))
                 .foregroundStyle(AppTheme.C.mag)
                 .kerning(2)
 
-            auraBar("Consistency", fraction: min(Double(player.currentStreak) / 30.0, 1), color: AppTheme.C.cyan)
-            auraBar("Variety",     fraction: varietyFraction, color: AppTheme.C.mag)
+            auraBar("Consistency", fraction: consistency, color: AppTheme.C.cyan,
+                    detail: "\(player.currentStreak) / 30 day streak")
+            auraBar("Variety",     fraction: varietyFraction, color: AppTheme.C.mag,
+                    detail: varietyFraction < 0.5 ? "Neglecting a goal ↓" : "Balanced this week")
 
             Text("Overall Aura: \(Int(player.auraScore)) / 1000")
                 .font(AppTheme.T.mono(13))
@@ -138,13 +142,24 @@ struct ProfileView: View {
     }
 
     @ViewBuilder
-    private func auraBar(_ label: String, fraction: Double, color: Color) -> some View {
-        HStack(spacing: 10) {
-            Text(label.uppercased())
-                .font(AppTheme.T.mono(9))
-                .foregroundStyle(AppTheme.C.smoke)
-                .frame(width: 88, alignment: .leading)
-                .kerning(1)
+    private func auraBar(_ label: String, fraction: Double, color: Color, detail: String = "") -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(label.uppercased())
+                    .font(AppTheme.T.mono(9))
+                    .foregroundStyle(AppTheme.C.smoke)
+                    .kerning(1)
+                Spacer()
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(AppTheme.T.mono(9))
+                        .foregroundStyle(color.opacity(0.8))
+                }
+                Text("\(Int(fraction * 100))%")
+                    .font(AppTheme.T.mono(10))
+                    .foregroundStyle(AppTheme.C.smoke)
+                    .monospacedDigit()
+            }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Rectangle().fill(AppTheme.C.rim).frame(height: 4)
@@ -155,18 +170,24 @@ struct ProfileView: View {
                 }
             }
             .frame(height: 4)
-            Text("\(Int(fraction * 100))%")
-                .font(AppTheme.T.mono(10))
-                .foregroundStyle(AppTheme.C.smoke)
-                .frame(width: 32, alignment: .trailing)
-                .monospacedDigit()
         }
     }
 
+    // Variety: how balanced this week's activity is across all 5 goals.
+    // Low when neglecting one type, high when all goals are on track.
     private var varietyFraction: Double {
-        let cutoff = calendar.date(byAdding: .day, value: -14, to: .now)!
-        let groups = Set(workouts.filter { $0.date >= cutoff }.flatMap { $0.sets.map(\.muscleGroup) })
-        return Double(groups.count) / 7.0
+        guard let player else { return 0 }
+        var ratios: [Double] = []
+        for type in ActivityType.allCases {
+            let goal = player.goal(for: type)
+            guard goal > 0 else { continue }
+            let actual = activeDaysThisWeek(for: type)
+            ratios.append(min(Double(actual) / Double(goal), 1.0))
+        }
+        guard !ratios.isEmpty else { return 0 }
+        let avg = ratios.reduce(0, +) / Double(ratios.count)
+        let minRatio = ratios.min() ?? 0
+        return avg * 0.6 + minRatio * 0.4
     }
 
     // MARK: - Activity Heatmap

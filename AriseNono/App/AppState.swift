@@ -11,6 +11,8 @@ class AppState {
     }
 
     var activeMoment: MomentType?
+    var streakFreezePending = false
+
     var todayXP: Int = 0
     var monthlyXP: Int = 0
     private var todayXPDate: Date = Calendar.current.startOfDay(for: .now)
@@ -39,6 +41,8 @@ class AppState {
     }
 
     private static let streakMilestones: Set<Int> = [7, 14, 30, 60, 100, 365]
+    // Award a free freeze at these streak milestones as a bonus
+    private static let freezeMilestones: Set<Int> = [7, 14, 30]
 
     func checkForMoments(oldXP: Int, newXP: Int, oldStreak: Int, newStreak: Int) {
         let oldLevel = LevelCurve.level(forTotalXP: oldXP)
@@ -75,7 +79,6 @@ class AppState {
     // MARK: - Player Helpers
 
     func awardXP(_ amount: Int, to player: Player, context: ModelContext) {
-        // Reset today's XP counter if the day has rolled over
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         if today > todayXPDate {
@@ -109,11 +112,22 @@ class AppState {
             let lastDay = calendar.startOfDay(for: last)
             let diff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
             switch diff {
-            case 0:  break
-            case 1:  player.currentStreak += 1
+            case 0:
+                break
+            case 1:
+                player.currentStreak += 1
+                // Bonus freeze at streak milestones
+                if Self.freezeMilestones.contains(player.currentStreak) {
+                    player.streakFreezeBalance += 1
+                }
             default:
-                if player.streakFreezeBalance > 0 {
-                    player.streakFreezeBalance -= 1
+                // Streak broke — prompt user to use a freeze if they have one
+                if player.streakFreezeBalance > 0 && !streakFreezePending {
+                    streakFreezePending = true
+                    player.lastActiveDate = today
+                    player.longestStreak = max(player.longestStreak, player.currentStreak)
+                    try? context.save()
+                    return
                 } else {
                     player.currentStreak = 1
                 }
@@ -126,15 +140,29 @@ class AppState {
         player.longestStreak = max(player.longestStreak, player.currentStreak)
         try? context.save()
 
-        if AppState.streakMilestones.contains(player.currentStreak) && player.currentStreak > oldStreak {
+        if Self.streakMilestones.contains(player.currentStreak) && player.currentStreak > oldStreak {
             triggerMoment(.streakMilestone(days: player.currentStreak))
         }
     }
 
+    func confirmUseFreeze(for player: Player, context: ModelContext) {
+        player.streakFreezeBalance -= 1
+        streakFreezePending = false
+        try? context.save()
+    }
+
+    func declineFreeze(for player: Player, context: ModelContext) {
+        player.currentStreak = 1
+        streakFreezePending = false
+        try? context.save()
+    }
+
+    // MARK: - Quest & Aura
+
     // Evaluate all active quests against today's and this week's workout data,
-    // update progress values, and complete quests that have hit their target.
+    // update progress values, complete quests that hit their target, and refresh aura.
     func refreshQuestProgress(player: Player?, context: ModelContext) {
-        let calendar  = Calendar.current
+        let calendar   = Calendar.current
         let todayStart = calendar.startOfDay(for: .now)
         let weekStart  = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? todayStart
 
@@ -189,29 +217,55 @@ class AppState {
                 }
             }
         }
+
+        // Recompute aura from consistency (streak) + variety (weekly goal balance)
+        if let player {
+            let consistencyFraction = min(Double(player.currentStreak) / 30.0, 1.0)
+            let varietyFraction = computeVariety(player: player, weekEntries: weekEntries)
+            player.auraScore = AuraCalculator.compute(
+                consistencyFraction: consistencyFraction,
+                varietyFraction: varietyFraction
+            )
+        }
+
         try? context.save()
     }
 
-    func updateAura(for player: Player, workoutHistory: [WorkoutEntry], context: ModelContext) {
-        let calendar = Calendar.current
-        let now = Date.now
+    // Variety: how balanced the user is across all 5 activity types vs their weekly goals.
+    // Score = 60% average completion + 40% weakest-link, so neglecting one type drags it down.
+    private func computeVariety(player: Player, weekEntries: [WorkoutEntry]) -> Double {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
 
-        let days30 = workoutHistory.filter {
-            (calendar.dateComponents([.day], from: $0.date, to: now).day ?? 0) <= 30
-        }.count
+        func uniqueDays(matching: (WorkoutEntry) -> Bool) -> Int {
+            Set(weekEntries.filter(matching).map { formatter.string(from: $0.date) }).count
+        }
 
-        let uniqueGroups14d = Set(
-            workoutHistory
-                .filter { (calendar.dateComponents([.day], from: $0.date, to: now).day ?? 0) <= 14 }
-                .flatMap { $0.sets.map(\.muscleGroup) }
-        ).count
+        var ratios: [Double] = []
+        for type in ActivityType.allCases {
+            let goal = player.goal(for: type)
+            guard goal > 0 else { continue }
 
-        let input = AuraInput(
-            activeDays30: days30,
-            currentStreak: player.currentStreak,
-            uniqueMuscleGroups14d: uniqueGroups14d
-        )
-        player.auraScore = AuraCalculator.compute(input: input)
-        try? context.save()
+            let actual: Int
+            switch type {
+            case .strength:
+                actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Strength" } }
+            case .cardio:
+                actual = uniqueDays { $0.sets.contains { $0.muscleGroup == .cardio } }
+            case .stretching:
+                actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Stretching" } }
+            case .back:
+                actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Back Pain Prevention" } }
+            case .sleep:
+                actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Sleep" } }
+            }
+
+            ratios.append(min(Double(actual) / Double(goal), 1.0))
+        }
+
+        guard !ratios.isEmpty else { return 0 }
+        let avg = ratios.reduce(0, +) / Double(ratios.count)
+        let minRatio = ratios.min() ?? 0
+        return avg * 0.6 + minRatio * 0.4
     }
 }
