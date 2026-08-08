@@ -17,7 +17,7 @@ final class QuickActionEntry {
         switch actionID {
         case "stretch": return .stretching
         case "cardio":  return .cardio
-        case "burst":   return .strength
+        case "burst":   return nil
         case "back":    return .back
         case "sleep":   return .sleep
         default:        return nil
