@@ -85,79 +85,44 @@ struct WorkoutEntryRow: View {
         return f
     }()
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(dateFormatter.string(from: entry.date))
-                            .font(AppTheme.T.body(14))
-                            .foregroundStyle(AppTheme.C.ash)
-                        Text(entry.muscleGroups.map(\.displayName).sorted().joined(separator: " · "))
-                            .font(AppTheme.T.mono(11))
-                            .foregroundStyle(AppTheme.C.smoke)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("+\(entry.xpAwarded) XP")
-                            .font(AppTheme.T.mono(12))
-                            .foregroundStyle(AppTheme.C.gold)
-                        Text("\(entry.totalSets) sets")
-                            .font(AppTheme.T.mono(11))
-                            .foregroundStyle(AppTheme.C.smoke)
-                    }
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(AppTheme.C.cyanDim)
-                        .padding(.leading, 8)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+    private var blockSummary: String {
+        entry.sets
+            .sorted { $0.setNumber < $1.setNumber }
+            .map { s -> String in
+                let mins = (s.durationSec ?? 0) / 60
+                let dur = mins < 60 ? "\(mins)m" : (mins % 60 == 0 ? "\(mins/60)h" : "\(mins/60)h \(mins%60)m")
+                return "\(s.exerciseName) \(dur)"
             }
-            .buttonStyle(.plain)
-
-            // Expanded set list
-            if expanded {
-                Divider().background(AppTheme.C.rim)
-                ForEach(entry.sets.sorted(by: { $0.setNumber < $1.setNumber })) { s in
-                    setRow(s)
-                }
-            }
-        }
-        .hudPanel(cut: 10, corners: [.topRight, .bottomLeft])
+            .joined(separator: "  ·  ")
     }
 
-    @ViewBuilder
-    private func setRow(_ s: ExerciseSet) -> some View {
+    var body: some View {
         HStack {
-            Text("Set \(s.setNumber)")
-                .font(AppTheme.T.mono(10))
-                .foregroundStyle(AppTheme.C.smoke)
-                .frame(width: 38, alignment: .leading)
-            Text(s.exerciseName)
-                .font(AppTheme.T.body(13))
-                .foregroundStyle(AppTheme.C.ash)
-            Spacer()
-            if s.muscleGroup == .cardio, let d = s.durationSec {
-                Text("\(d)s")
-                    .font(AppTheme.T.mono(12))
-                    .foregroundStyle(AppTheme.C.cyan)
-            } else {
-                if let r = s.reps, let w = s.weightKg {
-                    Text("\(r) × \(String(format: "%.1f", w))kg")
-                        .font(AppTheme.T.mono(12))
-                        .foregroundStyle(AppTheme.C.cyan)
-                } else if let r = s.reps {
-                    Text("\(r) reps")
-                        .font(AppTheme.T.mono(12))
-                        .foregroundStyle(AppTheme.C.cyan)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(dateFormatter.string(from: entry.date))
+                    .font(AppTheme.T.body(14))
+                    .foregroundStyle(AppTheme.C.ash)
+                if !blockSummary.isEmpty {
+                    Text(blockSummary)
+                        .font(AppTheme.T.mono(11))
+                        .foregroundStyle(AppTheme.C.smoke)
+                }
+                if !entry.notes.isEmpty {
+                    Text(entry.notes)
+                        .font(AppTheme.T.body(12))
+                        .foregroundStyle(AppTheme.C.smoke.opacity(0.7))
+                        .lineLimit(1)
                 }
             }
+            Spacer()
+            Text("+\(entry.xpAwarded) XP")
+                .font(AppTheme.T.mono(13))
+                .foregroundStyle(AppTheme.C.gold)
+                .neonGlow(color: AppTheme.C.gold, radius: 3)
+                .monospacedDigit()
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.vertical, 12)
+        .hudPanel(cut: 10, corners: [.topRight, .bottomLeft])
     }
 }

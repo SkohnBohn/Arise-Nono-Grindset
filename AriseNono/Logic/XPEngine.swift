@@ -22,6 +22,13 @@ enum XPEngine {
     static let varietyBonusPerGroup: Int = 5
     static let maxVarietyGroups: Int = 3
 
+    // Duration-based XP for the simplified logger
+    static func computeXP(isStrength: Bool, durationMinutes: Int, streak: Int) -> Int {
+        let rate: Double = isStrength ? 1.8 : 1.2
+        let base = Int(Double(durationMinutes) * rate)
+        return max(10, Int(Double(base) * streakMultiplier(streak: streak)))
+    }
+
     static func computeXP(for workout: WorkoutSnapshot) -> Int {
         let vol = volumeBonus(sets: workout.sets)
         let mult = streakMultiplier(streak: workout.streak)
