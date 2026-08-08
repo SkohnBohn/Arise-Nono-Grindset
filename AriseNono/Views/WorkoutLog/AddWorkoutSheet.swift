@@ -56,24 +56,22 @@ struct AddWorkoutSheet: View {
                             }
                         }
 
-                        // Add second workout button
-                        if blocks.count < 2 {
-                            Button {
-                                blocks.append(WorkoutBlock())
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.circle")
-                                    Text("ADD WORKOUT")
-                                        .kerning(1.5)
-                                }
-                                .font(AppTheme.T.heading(13))
-                                .foregroundStyle(AppTheme.C.cyan)
-                                .frame(maxWidth: .infinity)
-                                .padding(12)
+                        // Add workout button — always visible
+                        Button {
+                            blocks.append(WorkoutBlock())
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle")
+                                Text("ADD WORKOUT")
+                                    .kerning(1.5)
                             }
-                            .buttonStyle(.plain)
-                            .hudPanel(cut: 6, corners: .all, border: AppTheme.C.cyanDim)
+                            .font(AppTheme.T.heading(13))
+                            .foregroundStyle(AppTheme.C.cyan)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
                         }
+                        .buttonStyle(.plain)
+                        .hudPanel(cut: 6, corners: .all, border: AppTheme.C.cyanDim)
 
                         // XP preview
                         HStack {
@@ -164,6 +162,8 @@ struct WorkoutBlockCard: View {
     let canRemove: Bool
     let onRemove: () -> Void
 
+    @State private var durationOpen = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
@@ -193,21 +193,63 @@ struct WorkoutBlockCard: View {
             }
             .overlay(Rectangle().stroke(AppTheme.C.rim, lineWidth: 1))
 
-            // Duration label + pills
-            Text("DURATION")
-                .font(AppTheme.T.mono(9))
-                .foregroundStyle(AppTheme.C.smoke)
-                .kerning(2)
+            // Duration dropdown toggle
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { durationOpen.toggle() }
+                } label: {
+                    HStack {
+                        Text("DURATION")
+                            .font(AppTheme.T.mono(9))
+                            .foregroundStyle(AppTheme.C.smoke)
+                            .kerning(2)
+                        Spacer()
+                        Text(durationLabel(block.durationMin))
+                            .font(AppTheme.T.mono(13))
+                            .foregroundStyle(AppTheme.C.cyan)
+                        Image(systemName: durationOpen ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(AppTheme.C.cyanDim)
+                            .padding(.leading, 4)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.C.steel)
+                }
+                .buttonStyle(.plain)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(durations, id: \.self) { d in
-                        durationPill(d, selected: block.durationMin == d) {
-                            block.durationMin = d
+                if durationOpen {
+                    Divider().background(AppTheme.C.rim)
+                    VStack(spacing: 0) {
+                        ForEach(durations, id: \.self) { d in
+                            Button {
+                                block.durationMin = d
+                                withAnimation(.easeInOut(duration: 0.15)) { durationOpen = false }
+                            } label: {
+                                HStack {
+                                    Text(durationLabel(d))
+                                        .font(AppTheme.T.mono(13))
+                                        .foregroundStyle(block.durationMin == d ? AppTheme.C.cyan : AppTheme.C.ash)
+                                    Spacer()
+                                    if block.durationMin == d {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(AppTheme.C.cyan)
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 9)
+                                .background(block.durationMin == d ? AppTheme.C.cyan.opacity(0.08) : Color.clear)
+                            }
+                            .buttonStyle(.plain)
+                            if d != durations.last {
+                                Divider().background(AppTheme.C.rim)
+                            }
                         }
                     }
                 }
             }
+            .overlay(Rectangle().stroke(AppTheme.C.rim, lineWidth: 1))
         }
         .padding(14)
         .hudPanel(cut: 10, corners: [.topRight, .bottomLeft])
@@ -229,23 +271,9 @@ struct WorkoutBlockCard: View {
         .neonGlow(color: AppTheme.C.cyan, radius: selected ? 5 : 0)
     }
 
-    @ViewBuilder
-    private func durationPill(_ minutes: Int, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(durationLabel(minutes))
-                .font(AppTheme.T.mono(11))
-                .foregroundStyle(selected ? AppTheme.C.void : AppTheme.C.smoke)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(selected ? AppTheme.C.cyan : AppTheme.C.steel)
-        }
-        .buttonStyle(.plain)
-        .neonGlow(color: AppTheme.C.cyan, radius: selected ? 4 : 0)
-    }
-
     private func durationLabel(_ min: Int) -> String {
-        if min < 60 { return "\(min)m" }
+        if min < 60 { return "\(min) min" }
         let h = min / 60, m = min % 60
-        return m > 0 ? "\(h)h \(m)m" : "\(h)h"
+        return m > 0 ? "\(h)h \(m)min" : "\(h)h"
     }
 }
