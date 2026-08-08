@@ -5,6 +5,7 @@ struct WorkoutLogView: View {
     @Query(sort: \WorkoutEntry.date, order: .reverse) private var workouts: [WorkoutEntry]
     @Environment(\.modelContext) private var context
     @State private var showingAdd = false
+    @State private var editingEntry: WorkoutEntry? = nil
 
     var body: some View {
         NavigationStack {
@@ -19,6 +20,14 @@ struct WorkoutLogView: View {
                         LazyVStack(spacing: 10) {
                             ForEach(workouts) { entry in
                                 WorkoutEntryRow(entry: entry)
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            editingEntry = entry
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(AppTheme.C.cyan)
+                                    }
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
                                             context.delete(entry)
@@ -53,6 +62,9 @@ struct WorkoutLogView: View {
             }
             .sheet(isPresented: $showingAdd) {
                 AddWorkoutSheet()
+            }
+            .sheet(item: $editingEntry) { entry in
+                EditWorkoutSheet(entry: entry)
             }
         }
     }
