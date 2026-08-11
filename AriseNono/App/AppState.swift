@@ -166,12 +166,16 @@ class AppState {
         let todayStart = calendar.startOfDay(for: .now)
         let weekStart  = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? todayStart
 
-        guard let allWorkouts = try? context.fetch(FetchDescriptor<WorkoutEntry>()),
-              let allQuests   = try? context.fetch(FetchDescriptor<Quest>()) else { return }
+        guard let allWorkouts    = try? context.fetch(FetchDescriptor<WorkoutEntry>()),
+              let allQuests      = try? context.fetch(FetchDescriptor<Quest>()),
+              let allQuickActions = try? context.fetch(FetchDescriptor<QuickActionEntry>()) else { return }
 
         let activeQuests = allQuests.filter { $0.isActive }
         let todayEntries = allWorkouts.filter { $0.date >= todayStart }
         let weekEntries  = allWorkouts.filter { $0.date >= weekStart }
+
+        let todayQAIDs = allQuickActions.filter { $0.date >= todayStart }.map(\.actionID)
+        let weekQAIDs  = allQuickActions.filter { $0.date >= weekStart  }.map(\.actionID)
 
         let todayHistory: WorkoutHistoryEntry? = todayEntries.isEmpty ? nil : WorkoutHistoryEntry(
             date: .now,
@@ -184,7 +188,12 @@ class AppState {
                     .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
             },
             exerciseNames: Set(todayEntries.flatMap { $0.sets.map(\.exerciseName) }),
-            totalDurationMin: todayEntries.reduce(0) { $0 + $1.durationMin }
+            totalDurationMin: todayEntries.reduce(0) { $0 + $1.durationMin },
+            strengthDurationMin: todayEntries.reduce(0) { acc, entry in
+                acc + entry.sets
+                    .filter { $0.exerciseName == "Strength" }
+                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+            }
         )
         let weekHistory = weekEntries.map { entry in
             WorkoutHistoryEntry(
@@ -196,7 +205,10 @@ class AppState {
                     .filter { $0.muscleGroup == .cardio }
                     .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 },
                 exerciseNames: Set(entry.sets.map(\.exerciseName)),
-                totalDurationMin: entry.durationMin
+                totalDurationMin: entry.durationMin,
+                strengthDurationMin: entry.sets
+                    .filter { $0.exerciseName == "Strength" }
+                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
             )
         }
 
@@ -204,7 +216,9 @@ class AppState {
             let newValue = QuestEngine.evaluateProgress(
                 templateID: quest.templateID,
                 todayWorkout: todayHistory,
-                weekWorkouts: weekHistory
+                weekWorkouts: weekHistory,
+                todayQuickActionIDs: todayQAIDs,
+                weekQuickActionIDs: weekQAIDs
             )
             quest.currentValue = newValue
             guard !quest.isCompleted, newValue >= quest.targetValue else { continue }
