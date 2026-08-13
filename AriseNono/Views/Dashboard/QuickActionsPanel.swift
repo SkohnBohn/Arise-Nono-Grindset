@@ -5,10 +5,16 @@ struct QuickActionsPanel: View {
     let player: Player
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var context
+    @Query private var allQuickActions: [QuickActionEntry]
 
     @State private var pendingCounts: [String: Int] = [:]
     @State private var debounceTasks: [String: Task<Void, Never>] = [:]
     @State private var firstTapDate: [String: Date] = [:]
+
+    private var todayLoggedIDs: Set<String> {
+        let start = Calendar.current.startOfDay(for: .now)
+        return Set(allQuickActions.filter { $0.date >= start }.map(\.actionID))
+    }
 
     private struct Action: Identifiable {
         let id: String
@@ -56,21 +62,35 @@ struct QuickActionsPanel: View {
 
     @ViewBuilder
     private func actionButton(_ action: Action, height: CGFloat) -> some View {
-        let count = pendingCounts[action.id] ?? 0
-        let isActive = count > 0
-        let isLarge = height > 80
+        let count     = pendingCounts[action.id] ?? 0
+        let isPending = count > 0
+        let isDone    = todayLoggedIDs.contains(action.id)
+        let isLarge   = height > 80
+
+        // Colour priority: pending tap (gold) > done today (mag) > default (cyan)
+        let accentColor: Color = isPending ? AppTheme.C.gold : isDone ? AppTheme.C.mag : AppTheme.C.cyan
+        let iconRadius: CGFloat = isPending ? 8 : isDone ? 5 : 4
 
         Button {
             triggerAction(action)
         } label: {
             VStack(spacing: isLarge ? 6 : 4) {
-                Image(systemName: action.icon)
-                    .font(.system(size: isLarge ? 26 : 18, weight: .light))
-                    .foregroundStyle(isActive ? AppTheme.C.gold : AppTheme.C.cyan)
-                    .neonGlow(color: isActive ? AppTheme.C.gold : AppTheme.C.cyan, radius: isActive ? 8 : 4)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: action.icon)
+                        .font(.system(size: isLarge ? 26 : 18, weight: .light))
+                        .foregroundStyle(accentColor)
+                        .neonGlow(color: accentColor, radius: iconRadius)
+
+                    if isDone && !isPending {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(AppTheme.C.mag)
+                            .offset(x: 6, y: -4)
+                    }
+                }
                 Text(action.label)
                     .font(AppTheme.T.mono(isLarge ? 9 : 8))
-                    .foregroundStyle(AppTheme.C.ash)
+                    .foregroundStyle(isDone && !isPending ? AppTheme.C.mag.opacity(0.8) : AppTheme.C.ash)
                     .multilineTextAlignment(.center)
                     .kerning(0.3)
                     .lineSpacing(1)
@@ -83,7 +103,7 @@ struct QuickActionsPanel: View {
                 } else {
                     Text("+\(action.xp) XP")
                         .font(AppTheme.T.mono(8))
-                        .foregroundStyle(AppTheme.C.gold.opacity(isActive ? 1.0 : 0.7))
+                        .foregroundStyle(accentColor.opacity(isPending ? 1.0 : 0.7))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -91,10 +111,11 @@ struct QuickActionsPanel: View {
             .hudPanel(
                 cut: isLarge ? 10 : 6,
                 corners: isLarge ? [.topRight, .bottomLeft] : .topRight,
-                border: isActive ? AppTheme.C.gold.opacity(0.6) : AppTheme.C.cyanDim.opacity(0.5)
+                border: accentColor.opacity(isDone || isPending ? 0.6 : 0.5)
             )
-            .scaleEffect(isActive ? 0.97 : 1.0)
+            .scaleEffect(isPending ? 0.97 : 1.0)
             .animation(.spring(duration: 0.15), value: count)
+            .animation(.easeInOut(duration: 0.3), value: isDone)
         }
         .buttonStyle(.plain)
     }
