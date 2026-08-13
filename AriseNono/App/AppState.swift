@@ -107,16 +107,17 @@ class AppState {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         let oldStreak = player.currentStreak
+        var newDayStarted = false  // true when this is the first activity of a new day
 
         if let last = player.lastActiveDate {
             let lastDay = calendar.startOfDay(for: last)
             let diff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
             switch diff {
             case 0:
-                break
+                break  // same day — streak already counted, no bonus
             case 1:
                 player.currentStreak += 1
-                // Bonus freeze at streak milestones
+                newDayStarted = true
                 if Self.freezeMilestones.contains(player.currentStreak) {
                     player.streakFreezeBalance += 1
                 }
@@ -130,10 +131,12 @@ class AppState {
                     return
                 } else {
                     player.currentStreak = 1
+                    newDayStarted = true
                 }
             }
         } else {
             player.currentStreak = 1
+            newDayStarted = true
         }
 
         player.lastActiveDate = today
@@ -142,6 +145,11 @@ class AppState {
 
         if Self.streakMilestones.contains(player.currentStreak) && player.currentStreak > oldStreak {
             triggerMoment(.streakMilestone(days: player.currentStreak))
+        }
+
+        // Daily streak bonus: streak × 2 XP, awarded once per day
+        if newDayStarted {
+            awardXP(player.currentStreak * 2, to: player, context: context)
         }
     }
 

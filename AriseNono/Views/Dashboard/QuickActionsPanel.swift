@@ -150,6 +150,7 @@ struct QuickActionsPanel: View {
 
         try? context.save()
 
+        appState.updateStreak(for: player, context: context)
         appState.refreshQuestProgress(player: player, context: context)
 
         // Reset debounce state
