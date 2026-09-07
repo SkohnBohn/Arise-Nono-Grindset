@@ -103,7 +103,8 @@ class AppState {
                         oldStreak: oldStreak, newStreak: player.currentStreak)
     }
 
-    func updateStreak(for player: Player, context: ModelContext) {
+    @discardableResult
+    func updateStreak(for player: Player, context: ModelContext) -> (streak: Int, bonusXP: Int) {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
         let oldStreak = player.currentStreak
@@ -128,7 +129,7 @@ class AppState {
                     player.lastActiveDate = today
                     player.longestStreak = max(player.longestStreak, player.currentStreak)
                     try? context.save()
-                    return
+                    return (player.currentStreak, 0)
                 } else {
                     player.currentStreak = 1
                     newDayStarted = true
@@ -149,8 +150,11 @@ class AppState {
 
         // Daily streak bonus: streak × 2 XP, awarded once per day
         if newDayStarted {
-            awardXP(player.currentStreak * 2, to: player, context: context)
+            let bonus = player.currentStreak * 2
+            awardXP(bonus, to: player, context: context)
+            return (player.currentStreak, bonus)
         }
+        return (player.currentStreak, 0)
     }
 
     func confirmUseFreeze(for player: Player, context: ModelContext) {
