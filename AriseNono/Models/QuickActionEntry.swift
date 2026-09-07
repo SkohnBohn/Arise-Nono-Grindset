@@ -20,6 +20,7 @@ final class QuickActionEntry {
         case "burst":   return nil
         case "back":    return .back
         case "sleep":   return .sleep
+        case "water":   return .water
         default:        return nil
         }
     }

@@ -11,6 +11,7 @@ struct AdjustGoalsSheet: View {
     @State private var stretchGoal: Int
     @State private var backGoal: Int
     @State private var sleepGoal: Int
+    @State private var waterGoal: Int
     @State private var showingLevelWarning = false
 
     // Backup / restore
@@ -26,6 +27,7 @@ struct AdjustGoalsSheet: View {
         _stretchGoal  = State(initialValue: player.goalStretchDays)
         _backGoal     = State(initialValue: player.goalBackDays)
         _sleepGoal    = State(initialValue: player.goalSleepDays)
+        _waterGoal    = State(initialValue: player.goalWaterDays)
     }
 
     var body: some View {
@@ -40,11 +42,12 @@ struct AdjustGoalsSheet: View {
                             .multilineTextAlignment(.center)
                             .padding(.bottom, 4)
 
-                        goalRow(.strength, value: $strengthGoal)
-                        goalRow(.cardio,   value: $cardioGoal)
+                        goalRow(.strength,   value: $strengthGoal)
+                        goalRow(.cardio,     value: $cardioGoal)
                         goalRow(.stretching, value: $stretchGoal)
-                        goalRow(.back,     value: $backGoal)
-                        goalRow(.sleep,    value: $sleepGoal)
+                        goalRow(.back,       value: $backGoal)
+                        goalRow(.sleep,      value: $sleepGoal)
+                        goalRow(.water,      value: $waterGoal)
 
                         // Divider
                         Rectangle()
@@ -231,6 +234,7 @@ struct AdjustGoalsSheet: View {
         player.goalStretchDays  = stretchGoal
         player.goalBackDays     = backGoal
         player.goalSleepDays    = sleepGoal
+        player.goalWaterDays    = waterGoal
         try? context.save()
         dismiss()
     }

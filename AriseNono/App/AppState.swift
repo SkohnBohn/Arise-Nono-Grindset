@@ -246,7 +246,8 @@ class AppState {
         // Recompute aura from consistency (streak) + variety (weekly goal balance)
         if let player {
             let consistencyFraction = min(Double(player.currentStreak) / 30.0, 1.0)
-            let varietyFraction = computeVariety(player: player, weekEntries: weekEntries)
+            let weekQAs = allQuickActions.filter { $0.date >= weekStart }
+            let varietyFraction = computeVariety(player: player, weekEntries: weekEntries, weekQuickActions: weekQAs)
             player.auraScore = AuraCalculator.compute(
                 consistencyFraction: consistencyFraction,
                 varietyFraction: varietyFraction
@@ -258,7 +259,7 @@ class AppState {
 
     // Variety: how balanced the user is across all 5 activity types vs their weekly goals.
     // Score = 60% average completion + 40% weakest-link, so neglecting one type drags it down.
-    private func computeVariety(player: Player, weekEntries: [WorkoutEntry]) -> Double {
+    private func computeVariety(player: Player, weekEntries: [WorkoutEntry], weekQuickActions: [QuickActionEntry] = []) -> Double {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
 
@@ -283,6 +284,12 @@ class AppState {
                 actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Back Pain Prevention" } }
             case .sleep:
                 actual = uniqueDays { $0.sets.contains { $0.exerciseName == "Sleep" } }
+            case .water:
+                var dayCounts: [String: Int] = [:]
+                for q in weekQuickActions where q.actionID == "water" {
+                    dayCounts[formatter.string(from: q.date), default: 0] += 1
+                }
+                actual = dayCounts.values.filter { $0 >= 2 }.count
             }
 
             ratios.append(min(Double(actual) / Double(goal), 1.0))

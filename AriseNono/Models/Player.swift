@@ -21,6 +21,7 @@ final class Player {
     var goalStretchDays: Int = 3
     var goalBackDays: Int = 6
     var goalSleepDays: Int = 6
+    var goalWaterDays: Int = 6
 
     func goal(for type: ActivityType) -> Int {
         switch type {
@@ -29,6 +30,7 @@ final class Player {
         case .stretching: return goalStretchDays
         case .back:       return goalBackDays
         case .sleep:      return goalSleepDays
+        case .water:      return goalWaterDays
         }
     }
 

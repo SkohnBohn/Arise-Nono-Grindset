@@ -31,6 +31,7 @@ struct BkpPlayer: Codable {
     var goalStretchDays: Int
     var goalBackDays: Int
     var goalSleepDays: Int
+    var goalWaterDays: Int = 6
 }
 
 struct BkpWorkout: Codable {
@@ -89,7 +90,8 @@ enum BackupEngine {
             goalCardioDays: player.goalCardioDays,
             goalStretchDays: player.goalStretchDays,
             goalBackDays: player.goalBackDays,
-            goalSleepDays: player.goalSleepDays
+            goalSleepDays: player.goalSleepDays,
+            goalWaterDays: player.goalWaterDays
         )
 
         let workoutSnaps: [BkpWorkout] = workouts.map { w in
@@ -154,6 +156,7 @@ enum BackupEngine {
         player.goalStretchDays     = p.goalStretchDays
         player.goalBackDays        = p.goalBackDays
         player.goalSleepDays       = p.goalSleepDays
+        player.goalWaterDays       = p.goalWaterDays
 
         // Restore workouts
         for ws in backup.workouts {

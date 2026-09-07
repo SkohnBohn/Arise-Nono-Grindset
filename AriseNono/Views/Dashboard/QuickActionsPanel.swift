@@ -12,9 +12,9 @@ struct QuickActionsPanel: View {
     @State private var firstTapDate: [String: Date] = [:]
     @State private var streakBonusResult: StreakBonusResult?
 
-    private var todayLoggedIDs: Set<String> {
+    private func todayCommittedCount(for actionID: String) -> Int {
         let start = Calendar.current.startOfDay(for: .now)
-        return Set(allQuickActions.filter { $0.date >= start }.map(\.actionID))
+        return allQuickActions.filter { $0.date >= start && $0.actionID == actionID }.count
     }
 
     private struct Action: Identifiable {
@@ -25,6 +25,8 @@ struct QuickActionsPanel: View {
         let baseDurationMin: Int
         let exerciseName: String
         let muscleGroup: MuscleGroup
+        var goalCount: Int = 1       // taps needed to show "done" colour
+        var logsOnePerTap: Bool = false  // true → insert one QuickActionEntry per tap
     }
 
     private let upper: [Action] = [
@@ -36,6 +38,7 @@ struct QuickActionsPanel: View {
     private let lower: [Action] = [
         Action(id: "back",  label: "back pain\nprevention 15 min", icon: "figure.core.training", xp: 10, baseDurationMin: 15, exerciseName: "Back Pain Prevention", muscleGroup: .core),
         Action(id: "sleep", label: "slept\nproperly",              icon: "moon.zzz.fill",        xp: 10, baseDurationMin: 0,  exerciseName: "Sleep",                muscleGroup: .core),
+        Action(id: "water", label: "water\n500 mL",                icon: "drop.fill",            xp: 5,  baseDurationMin: 0,  exerciseName: "Water",                muscleGroup: .core, goalCount: 2, logsOnePerTap: true),
     ]
 
     var body: some View {
@@ -70,7 +73,7 @@ struct QuickActionsPanel: View {
     private func actionButton(_ action: Action, height: CGFloat) -> some View {
         let count     = pendingCounts[action.id] ?? 0
         let isPending = count > 0
-        let isDone    = todayLoggedIDs.contains(action.id)
+        let isDone    = todayCommittedCount(for: action.id) >= action.goalCount
         let isLarge   = height > 80
 
         // Colour priority: pending tap (gold) > done today (mag) > default (cyan)
@@ -179,9 +182,12 @@ struct QuickActionsPanel: View {
         context.insert(s)
         entry.sets = [s]
 
-        // QuickActionEntry for the heatmap (one per committed session)
-        let qe = QuickActionEntry(date: date, actionID: action.id)
-        context.insert(qe)
+        // QuickActionEntry for the heatmap.
+        // logsOnePerTap actions (water) insert one record per tap so the count is trackable.
+        let entryCount = action.logsOnePerTap ? count : 1
+        for _ in 0..<entryCount {
+            context.insert(QuickActionEntry(date: date, actionID: action.id))
+        }
 
         try? context.save()
 

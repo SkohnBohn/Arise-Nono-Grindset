@@ -6,6 +6,7 @@ enum ActivityType: String, CaseIterable, Identifiable {
     case stretching = "stretching"
     case back       = "back"
     case sleep      = "sleep"
+    case water      = "water"
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum ActivityType: String, CaseIterable, Identifiable {
         case .stretching: return Color(hex: "00D46A")
         case .back:       return Color(hex: "FF8A00")
         case .sleep:      return Color(hex: "9B6DFF")
+        case .water:      return Color(hex: "1EB6FF")
         }
     }
 
@@ -26,6 +28,7 @@ enum ActivityType: String, CaseIterable, Identifiable {
         case .stretching: return "STRETCHING"
         case .back:       return "BACK PAIN"
         case .sleep:      return "SLEEP"
+        case .water:      return "WATER (1L)"
         }
     }
 
@@ -36,6 +39,7 @@ enum ActivityType: String, CaseIterable, Identifiable {
         case .stretching: return "Stretch"
         case .back:       return "Back"
         case .sleep:      return "Sleep"
+        case .water:      return "Water"
         }
     }
 
@@ -46,6 +50,7 @@ enum ActivityType: String, CaseIterable, Identifiable {
         case .stretching: return "figure.flexibility"
         case .back:       return "figure.core.training"
         case .sleep:      return "moon.zzz.fill"
+        case .water:      return "drop.fill"
         }
     }
 }

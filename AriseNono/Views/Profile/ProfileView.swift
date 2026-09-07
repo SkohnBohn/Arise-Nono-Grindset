@@ -212,9 +212,14 @@ struct ProfileView: View {
 
         for q in quickActions {
             guard calendar.isDate(q.date, inSameDayAs: day),
-                  let t = q.activityType else { continue }
+                  let t = q.activityType,
+                  t != .water else { continue }
             types.insert(t)
         }
+
+        // Water: only show color if 1L (2 × 500 mL) was logged that day
+        let waterCount = quickActions.filter { calendar.isDate($0.date, inSameDayAs: day) && $0.actionID == "water" }.count
+        if waterCount >= 2 { types.insert(.water) }
 
         return ActivityType.allCases.filter { types.contains($0) }
     }
@@ -304,6 +309,14 @@ struct ProfileView: View {
                 }
                 if hasType { days.insert(formatter.string(from: w.date)) }
             }
+        case .water:
+            // Count distinct days where 2+ water entries (= 1L) were logged
+            var dayCounts: [String: Int] = [:]
+            for q in quickActions {
+                guard q.date >= weekStart, q.actionID == "water" else { continue }
+                dayCounts[formatter.string(from: q.date), default: 0] += 1
+            }
+            return dayCounts.values.filter { $0 >= 2 }.count
         default:
             for q in quickActions {
                 guard q.date >= weekStart, q.activityType == type else { continue }
