@@ -10,6 +10,7 @@ struct QuickActionsPanel: View {
     @State private var pendingCounts: [String: Int] = [:]
     @State private var debounceTasks: [String: Task<Void, Never>] = [:]
     @State private var firstTapDate: [String: Date] = [:]
+    @State private var streakBonusResult: StreakBonusResult?
 
     private var todayLoggedIDs: Set<String> {
         let start = Calendar.current.startOfDay(for: .now)
@@ -56,6 +57,11 @@ struct QuickActionsPanel: View {
                 }
                 Spacer()
                     .frame(maxWidth: .infinity)
+            }
+        }
+        .fullScreenCover(item: $streakBonusResult) { result in
+            StreakBonusView(streak: result.streak, bonusXP: result.bonusXP) {
+                streakBonusResult = nil
             }
         }
     }
@@ -143,6 +149,14 @@ struct QuickActionsPanel: View {
         }
     }
 
+    // MARK: - Streak bonus types
+
+    struct StreakBonusResult: Identifiable {
+        let id = UUID()
+        let streak: Int
+        let bonusXP: Int
+    }
+
     @MainActor
     private func commitAction(_ action: Action) {
         let count = pendingCounts[action.id] ?? 1
@@ -171,12 +185,91 @@ struct QuickActionsPanel: View {
 
         try? context.save()
 
-        appState.updateStreak(for: player, context: context)
+        let streakResult = appState.updateStreak(for: player, context: context)
         appState.refreshQuestProgress(player: player, context: context)
+        if streakResult.bonusXP > 0 {
+            streakBonusResult = StreakBonusResult(streak: streakResult.streak, bonusXP: streakResult.bonusXP)
+        }
 
         // Reset debounce state
         pendingCounts[action.id] = 0
         debounceTasks[action.id] = nil
         firstTapDate[action.id] = nil
+    }
+}
+
+// MARK: - Streak Bonus Screen
+
+struct StreakBonusView: View {
+    let streak: Int
+    let bonusXP: Int
+    let onDismiss: () -> Void
+
+    @State private var appeared = false
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Text("STREAK EXTENDED")
+                    .font(AppTheme.T.mono(11))
+                    .foregroundStyle(AppTheme.C.gold)
+                    .kerning(4)
+                    .neonGlow(color: AppTheme.C.gold, radius: 4)
+                    .padding(.top, 72)
+                    .opacity(appeared ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.1), value: appeared)
+
+                Spacer()
+
+                VStack(spacing: 20) {
+                    Text("🔥")
+                        .font(.system(size: 72))
+                        .scaleEffect(appeared ? 1 : 0.5)
+                        .opacity(appeared ? 1 : 0)
+                        .animation(.spring(duration: 0.5, bounce: 0.4), value: appeared)
+
+                    Text("DAY \(streak)")
+                        .font(AppTheme.T.mono(52))
+                        .foregroundStyle(AppTheme.C.gold)
+                        .fontWeight(.bold)
+                        .neonGlow(color: AppTheme.C.gold, radius: 12)
+                        .monospacedDigit()
+                        .opacity(appeared ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(0.25), value: appeared)
+                }
+
+                Spacer()
+
+                VStack(spacing: 14) {
+                    Text("+\(bonusXP) STREAK XP")
+                        .font(AppTheme.T.mono(22))
+                        .foregroundStyle(AppTheme.C.gold.opacity(0.85))
+                        .monospacedDigit()
+                        .neonGlow(color: AppTheme.C.gold, radius: 5)
+
+                    Button(action: onDismiss) {
+                        Text("NAH, I'D GRIND")
+                            .font(AppTheme.T.heading(15))
+                            .foregroundStyle(AppTheme.C.void)
+                            .kerning(3)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(AppTheme.C.gold)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .neonGlow(color: AppTheme.C.gold, radius: 6)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 32)
+                }
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 20)
+                .animation(.easeOut(duration: 0.4).delay(0.4), value: appeared)
+                .padding(.bottom, 52)
+            }
+        }
+        .onTapGesture { onDismiss() }
+        .onAppear { appeared = true }
     }
 }

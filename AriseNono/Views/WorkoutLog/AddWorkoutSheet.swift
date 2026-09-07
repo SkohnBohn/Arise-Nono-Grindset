@@ -19,6 +19,8 @@ struct AddWorkoutSheet: View {
     @State private var showingReward = false
     @State private var rewardImageName = "gojo_1"
     @State private var rewardXP = 0
+    @State private var streakDay = 0
+    @State private var streakBonusXP = 0
 
     private let durations = [5, 10, 15, 20, 30, 45, 60, 75, 90, 120]
     private var streak: Int { players.first?.currentStreak ?? 0 }
@@ -124,7 +126,8 @@ struct AddWorkoutSheet: View {
                 }
             }
             .fullScreenCover(isPresented: $showingReward, onDismiss: { dismiss() }) {
-                GojoRewardView(imageName: rewardImageName, xpEarned: rewardXP) {
+                GojoRewardView(imageName: rewardImageName, xpEarned: rewardXP,
+                               streakDay: streakDay, streakBonus: streakBonusXP) {
                     showingReward = false
                 }
             }
@@ -153,7 +156,9 @@ struct AddWorkoutSheet: View {
         entry.xpAwarded = previewXP
 
         if let player = players.first {
-            appState.updateStreak(for: player, context: context)
+            let streakResult = appState.updateStreak(for: player, context: context)
+            streakDay = streakResult.streak
+            streakBonusXP = streakResult.bonusXP
             appState.awardXP(previewXP, to: player, context: context)
         }
 
@@ -179,6 +184,8 @@ struct AddWorkoutSheet: View {
 struct GojoRewardView: View {
     let imageName: String
     let xpEarned: Int
+    var streakDay: Int = 0
+    var streakBonus: Int = 0
     let onDismiss: () -> Void
 
     @State private var appeared = false
@@ -219,6 +226,23 @@ struct GojoRewardView: View {
                         .fontWeight(.bold)
                         .neonGlow(color: AppTheme.C.gold, radius: 10)
                         .monospacedDigit()
+
+                    if streakBonus > 0 {
+                        VStack(spacing: 4) {
+                            Text("🔥 DAY \(streakDay) STREAK")
+                                .font(AppTheme.T.mono(11))
+                                .foregroundStyle(AppTheme.C.gold)
+                                .kerning(2)
+                            Text("+\(streakBonus) STREAK BONUS")
+                                .font(AppTheme.T.mono(13))
+                                .foregroundStyle(AppTheme.C.gold.opacity(0.7))
+                                .monospacedDigit()
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 20)
+                        .background(AppTheme.C.gold.opacity(0.08))
+                        .overlay(Rectangle().stroke(AppTheme.C.gold.opacity(0.25), lineWidth: 1))
+                    }
 
                     Button(action: onDismiss) {
                         Text("KEEP GRINDING, KITTEN 🫦")
