@@ -16,6 +16,7 @@ final class Quest {
     var completedAt: Date?
     var expiresAt: Date
     var rewardType: QuestRewardType
+    var createdAt: Date = Date()
 
     init(
         templateID: String,

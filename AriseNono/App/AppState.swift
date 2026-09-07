@@ -183,54 +183,53 @@ class AppState {
               let allQuickActions = try? context.fetch(FetchDescriptor<QuickActionEntry>()) else { return }
 
         let activeQuests = allQuests.filter { $0.isActive }
-        let todayEntries = allWorkouts.filter { $0.date >= todayStart }
         let weekEntries  = allWorkouts.filter { $0.date >= weekStart }
 
-        let todayQAIDs = allQuickActions.filter { $0.date >= todayStart }.map(\.actionID)
-        let weekQAIDs  = allQuickActions.filter { $0.date >= weekStart  }.map(\.actionID)
-
-        let todayHistory: WorkoutHistoryEntry? = todayEntries.isEmpty ? nil : WorkoutHistoryEntry(
-            date: .now,
-            muscleGroups: Set(todayEntries.flatMap { $0.sets.map(\.muscleGroup) }),
-            setCount: todayEntries.reduce(0) { $0 + $1.totalSets },
-            hasCardio: todayEntries.contains { $0.sets.contains { $0.muscleGroup == .cardio } },
-            cardioMinutes: todayEntries.reduce(0) { acc, entry in
-                acc + entry.sets
-                    .filter { $0.muscleGroup == .cardio }
-                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
-            },
-            exerciseNames: Set(todayEntries.flatMap { $0.sets.map(\.exerciseName) }),
-            totalDurationMin: todayEntries.reduce(0) { $0 + $1.durationMin },
-            strengthDurationMin: todayEntries.reduce(0) { acc, entry in
-                acc + entry.sets
-                    .filter { $0.exerciseName == "Strength" }
-                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
-            }
-        )
-        let weekHistory = weekEntries.map { entry in
-            WorkoutHistoryEntry(
-                date: entry.date,
-                muscleGroups: entry.muscleGroups,
-                setCount: entry.totalSets,
-                hasCardio: entry.sets.contains { $0.muscleGroup == .cardio },
-                cardioMinutes: entry.sets
-                    .filter { $0.muscleGroup == .cardio }
-                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 },
-                exerciseNames: Set(entry.sets.map(\.exerciseName)),
-                totalDurationMin: entry.durationMin,
-                strengthDurationMin: entry.sets
-                    .filter { $0.exerciseName == "Strength" }
-                    .reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
-            )
-        }
-
         for quest in activeQuests {
+            // Only count activities that happened after this quest was created.
+            // This prevents freshly generated quests from instantly completing
+            // because the user already logged something earlier in the day.
+            let effectiveTodayStart = max(todayStart, quest.createdAt)
+            let effectiveWeekStart  = max(weekStart,  quest.createdAt)
+
+            let qTodayEntries = allWorkouts.filter { $0.date >= effectiveTodayStart }
+            let qWeekEntries  = allWorkouts.filter { $0.date >= effectiveWeekStart  }
+            let qTodayQAIDs   = allQuickActions.filter { $0.date >= effectiveTodayStart }.map(\.actionID)
+            let qWeekQAIDs    = allQuickActions.filter { $0.date >= effectiveWeekStart  }.map(\.actionID)
+
+            let qTodayHistory: WorkoutHistoryEntry? = qTodayEntries.isEmpty ? nil : WorkoutHistoryEntry(
+                date: .now,
+                muscleGroups: Set(qTodayEntries.flatMap { $0.sets.map(\.muscleGroup) }),
+                setCount: qTodayEntries.reduce(0) { $0 + $1.totalSets },
+                hasCardio: qTodayEntries.contains { $0.sets.contains { $0.muscleGroup == .cardio } },
+                cardioMinutes: qTodayEntries.reduce(0) { acc, e in
+                    acc + e.sets.filter { $0.muscleGroup == .cardio }.reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+                },
+                exerciseNames: Set(qTodayEntries.flatMap { $0.sets.map(\.exerciseName) }),
+                totalDurationMin: qTodayEntries.reduce(0) { $0 + $1.durationMin },
+                strengthDurationMin: qTodayEntries.reduce(0) { acc, e in
+                    acc + e.sets.filter { $0.exerciseName == "Strength" }.reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+                }
+            )
+            let qWeekHistory = qWeekEntries.map { e in
+                WorkoutHistoryEntry(
+                    date: e.date,
+                    muscleGroups: e.muscleGroups,
+                    setCount: e.totalSets,
+                    hasCardio: e.sets.contains { $0.muscleGroup == .cardio },
+                    cardioMinutes: e.sets.filter { $0.muscleGroup == .cardio }.reduce(0) { $0 + ($1.durationSec ?? 0) / 60 },
+                    exerciseNames: Set(e.sets.map(\.exerciseName)),
+                    totalDurationMin: e.durationMin,
+                    strengthDurationMin: e.sets.filter { $0.exerciseName == "Strength" }.reduce(0) { $0 + ($1.durationSec ?? 0) / 60 }
+                )
+            }
+
             let newValue = QuestEngine.evaluateProgress(
                 templateID: quest.templateID,
-                todayWorkout: todayHistory,
-                weekWorkouts: weekHistory,
-                todayQuickActionIDs: todayQAIDs,
-                weekQuickActionIDs: weekQAIDs
+                todayWorkout: qTodayHistory,
+                weekWorkouts: qWeekHistory,
+                todayQuickActionIDs: qTodayQAIDs,
+                weekQuickActionIDs: qWeekQAIDs
             )
             quest.currentValue = newValue
             guard !quest.isCompleted, newValue >= quest.targetValue else { continue }
